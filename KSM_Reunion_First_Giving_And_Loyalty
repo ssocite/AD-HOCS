@@ -1,0 +1,90 @@
+"--- First Time Making a Gift
+With subquery AS (select
+household_id,
+min (fiscal_year) As minimum_dor
+From rpt_pbh634.v_ksm_giving_trans_hh gth
+ Where
+  -- Not counting matching gifts
+  gth.tx_gypm_ind <> 'M'
+  -- Sum of Gifts Over $0
+ And gth.RECOGNITION_CREDIT > 0
+  Group By
+  household_id),
+
+--- 2019 Reunion Population: Pulled by Affilation Year
+
+Kellogg_Reunion_Year As
+(Select
+aff.id_number,
+aff.affil_code,
+aff.affil_level_code,
+aff.class_year
+From affiliation aff
+Where aff.affil_code = 'KM'
+And aff.affil_level_code = 'RG'
+And aff.class_year IN ('2018','2014','2009','2004','1999',
+'1994','1989','1984','1979','1974','1969','1968','1967','1966','1965','1964','1963','1962','1961','1960','1959')),
+
+KSM_Loyal_Donor AS(
+Select give.ID_NUMBER,
+       give.HOUSEHOLD_ID,
+       give.NGC_PFY1 AS FY_19_Giving,
+       give.NGC_CFY AS FY_20_Giving,
+       Case When NGC_CFY > 0 AND NGC_PFY1 > 0 Then 'Loyal'
+         Else 'Non-Loyal'
+           End As Loyal_Donor
+From rpt_pbh634.v_ksm_giving_summary give)
+
+
+Select Distinct
+
+rpt_pbh634.v_entity_ksm_households.ID_NUMBER,
+rpt_pbh634.v_entity_ksm_households.REPORT_NAME,
+rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_KSM_YEAR,
+rpt_pbh634.v_entity_ksm_households.DEGREES_CONCAT,
+rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_PROGRAM_GROUP,
+Kellogg_Reunion_Year.affil_code,
+Kellogg_Reunion_Year.affil_level_code,
+Kellogg_Reunion_Year.class_year,
+Subquery.minimum_dor AS Year_of_First_Gift,
+
+--- Setting Rules to Group First Time Donors for a Pivot Table/Report
+Case When subquery.minimum_dor IN ('2020')
+  then '2020'
+  When subquery.minimum_dor IN ('2019')
+  then '2019'
+    When subquery.minimum_dor IN ('2018')
+  then '2018'
+    When subquery.minimum_dor IN ('2017')
+      then '2017'
+    When subquery.minimum_dor IN ('2016','2015','2014')
+      then '2016_2015_2014'
+    When subquery.minimum_dor <= '2013'
+      then '2013_And_Before'
+    else 'Never'
+
+End As FY_First_Gift_To_Kellogg,
+KSM_Loyal_Donor.FY_19_Giving,
+KSM_Loyal_Donor.FY_20_Giving,
+Case When KSM_Loyal_Donor.FY_19_Giving > 0 And KSM_Loyal_Donor.FY_20_Giving > 0 then 'Loyal'
+    Else 'Non-Loyal'
+    End As Loyal_Donor
+
+
+--- Use KSM Households as my base
+
+From rpt_pbh634.v_entity_ksm_households
+
+--- Inner Join: Kellog Reunion Year Subquery. This is to get just my Reunion Population
+
+Inner Join  Kellogg_Reunion_Year ON  Kellogg_Reunion_Year.id_number = rpt_pbh634.v_entity_ksm_households.ID_NUMBER
+
+--- Left Join Subquery to Identify First Time Givers. Joining by household_id
+
+Left Join subquery ON rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_ID = subquery.household_id
+
+--- Left Join Subquery of Loyal Donors
+
+Left Join KSM_Loyal_Donor ON KSM_Loyal_Donor.Household_ID = rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_ID
+
+Order By minimum_dor ASC"
