@@ -1,0 +1,261 @@
+--- KSM Reunion 2021 Pull 
+
+--- Catracks IDs, Names (first, last, maiden), Kellogg Degree Year ,
+--- Kellogg Reunion Year = 2020, 2016, 2011, 2006, 2001, 1996, 1991, 1986, 1981, 1976, 1971, and 1970 up until 1960 for HC
+--- Kellogg Degree Department, Kellogg Program, Kellogg Class Section: If we have it on file
+--- Preferred Address: City, State, Country
+--- Phone. Preferred Email
+--- 2016 Reunion Committee Member (Y/N) (include Reunion 2017 to pull 2016’s 1st year committee names)
+--- Please also include if they were on their committee in 2011 and/or 2006
+--- Attended 2016 Reunion? (Include Reunion 2017 attendance for the 2016’s 1st year). 
+--- KAC Membership (Y/N)
+--- PHS Membership (Y/N)
+--- Club Leader (Y/N) 
+--- Notable Alumni = Y/N
+--- KLC Donor FY 20 (Y/N)
+--- Date of last Donation
+--- Prospect Manager / Assigned to Annual Giving Team Member (LGO)
+
+--- Kellogg Reunion Year Subquery: Getting Kellogg Reunion Year
+
+ 
+--- KSM KLC (Used Amy's View)
+
+With KSM_KLC AS (Select RPT_ABM1914.v_KLC_Members.id_number, 
+RPT_ABM1914.v_KLC_Members.segment
+From RPT_ABM1914.v_KLC_Members),
+
+--- KSM Last Gift --- Pulled from giving summary, date of last gift
+
+KSM_Last_Gift As (
+Select give.ID_NUMBER,
+       give.LAST_GIFT_DATE
+FROM rpt_pbh634.v_ksm_giving_summary give),
+
+--- Current Club Leader --- Bridget's Definition
+
+KSM_CLUB_LEADERS AS (Select v_ksm_club_leaders.id_Number
+from v_ksm_club_leaders),
+
+--- Kellogg Reunion Year: 2020, the 1st and 6th, half century 
+
+Kellogg_Reunion_Year As 
+( Select aff.id_number,
+         aff.affil_code,
+         aff.affil_level_code,
+         aff.class_year
+From affiliation aff
+Where aff.affil_code = 'KM'
+And aff.affil_level_code = 'RG'
+And aff.class_year IN ('2020','2016','2011','2006','2001','1996','1991','1986','1981','1976','1971','1970','1969'
+, '1968', '1967', '1966', '1965', '1964', '1963','1962','1961','1960')
+
+Order by aff.class_year ASC),
+
+--- Locating Address: Using Household Table
+
+KSM_Address AS (Select house.ID_NUMBER,
+       house.HOUSEHOLD_CITY,
+       house.HOUSEHOLD_STATE,
+       house.HOUSEHOLD_ZIP,
+       house.HOUSEHOLD_GEO_CODES,
+       house.HOUSEHOLD_GEO_PRIMARY,
+       house.HOUSEHOLD_COUNTRY,
+       house.HOUSEHOLD_CONTINENT
+From rpt_pbh634.v_entity_ksm_households house),
+
+--- Kellogg Emails: Preferred Emails 
+
+KSM_Email AS (Select Email.Id_Number 
+From Email
+Inner Join rpt_pbh634.v_entity_ksm_degrees deg on deg.ID_NUMBER = email.id_number
+Where Email.Preferred_Ind = 'Y'),
+
+--- Kellogg Telephone: Preferred Telephone
+
+KSM_telephone AS (Select t.id_number
+From telephone t
+Inner Join rpt_pbh634.v_entity_ksm_degrees deg ON deg.ID_NUMBER = t.id_number
+Where t.preferred_ind = 'Y'),
+ 
+ --- Reunion 2017 committee --- Everyone in 2017 Reunion Committee had a start date of 09/01/2016 (Three records with start dates of Jan 24,25,26 in 2017
+ 
+ REUNION_COMMITTEE2017 AS (
+ SELECT 
+    ID_NUMBER,
+    COMMITTEE.COMMITTEE_CODE,
+    COMMITTEE.START_DT,
+    Tms_Committee_Table.short_desc
+ FROM COMMITTEE 
+ Left Join Tms_Committee_Table ON Tms_Committee_Table.committee_code = COMMITTEE.COMMITTEE_CODE
+ WHERE COMMITTEE.COMMITTEE_CODE = '227' AND COMMITTEE.COMMITTEE_STATUS_CODE = 'F'
+ And Committee.Start_Dt IN ('20160901','20170124','2017012','20170126')),
+ 
+ --- Reunion 2016 committee --- Everyone in the 2016 Reunion Committee had a start date of  09/01/2015
+ 
+ REUNION_COMMITTEE2016 AS (
+ SELECT 
+    ID_NUMBER,
+    COMMITTEE.COMMITTEE_CODE,
+    COMMITTEE.START_DT,
+    Tms_Committee_Table.short_desc
+ FROM COMMITTEE 
+ Left Join Tms_Committee_Table ON Tms_Committee_Table.committee_code = COMMITTEE.COMMITTEE_CODE
+ WHERE COMMITTEE.COMMITTEE_CODE = '227' AND COMMITTEE.COMMITTEE_STATUS_CODE = 'F'
+ And Committee.Start_Dt IN ('20150901')),
+
+ 
+ --- Reunion 2011 committee --- Everyone in the 2011 Reunion Committee had a start date of 09/01/2010
+ 
+ REUNION_COMMITTEE2011 AS (
+ SELECT 
+    ID_NUMBER,
+    COMMITTEE.COMMITTEE_CODE,
+    COMMITTEE.START_DT,
+    Tms_Committee_Table.short_desc
+ FROM COMMITTEE 
+ Left Join Tms_Committee_Table ON Tms_Committee_Table.committee_code = COMMITTEE.COMMITTEE_CODE
+ WHERE COMMITTEE.COMMITTEE_CODE = '227' AND COMMITTEE.COMMITTEE_STATUS_CODE = 'F'
+ And Committee.Start_Dt IN ('20100901')),
+ 
+ 
+--- Reunion 2006 committee --- Everyone in the 2006 Committee had a start date of 09/01/2005 (three records had 10/15/2005, 12/01/2005, 12/16/2005
+ 
+ REUNION_COMMITTEE2006 AS (
+ SELECT 
+    ID_NUMBER,
+    COMMITTEE.COMMITTEE_CODE,
+    COMMITTEE.START_DT,
+    Tms_Committee_Table.short_desc
+ FROM COMMITTEE 
+ Left Join Tms_Committee_Table ON Tms_Committee_Table.committee_code = COMMITTEE.COMMITTEE_CODE
+ WHERE COMMITTEE.COMMITTEE_CODE = '227' AND COMMITTEE.COMMITTEE_STATUS_CODE = 'F'
+ And Committee.Start_Dt IN ('20050901','20051015','20051201','20051216')),
+ 
+ 
+ --- Attended 2017 Reunion? --- For the 1st Year's (2016) that are now 5th year
+ 
+ REUNION_2017_PARTICIPANTS AS (
+Select ep_participant.id_number
+From ep_event
+Left Join EP_Participant 
+ON ep_participant.event_id = ep_event.event_id
+Where ep_event.event_name Like '%KSM17 Reunion Weekend%'
+),
+
+--- Attended 2016 Reunion? 
+
+ REUNION_2016_PARTICIPANTS AS (
+Select ep_participant.id_number
+From ep_event
+Left Join EP_Participant 
+ON ep_participant.event_id = ep_event.event_id
+Where ep_event.event_name Like '%KSM16 Reunion Weekend%'
+),
+
+
+
+--- Current Notable Alumni --- From Mailing List
+
+KSM_NOTABLE_ALUMNI AS (
+Select 
+ mailing_list.id_number      
+FROM  mailing_list
+WHERE  mail_list_code = '100' 
+AND  UPPER(xcomment) LIKE 'KSM NOTABLE ALUMNI%'),
+
+--- Current KAC Members --- Current Members of KAC
+
+KSM_KAC_PHS AS (Select comm.id_number,
+       comm.committee_code,
+       comm.committee_status_code
+From committee comm
+Where comm.committee_code IN ('KPH', 'KACNA')
+And comm.committee_status_code = 'C'),
+
+--- KSM Prospect Manager --- Pulled from Prospect Pool
+
+KSM_Prospect AS (Select rpt_pbh634.v_assignment_summary.id_number,
+       rpt_pbh634.v_assignment_summary.prospect_manager,
+       rpt_pbh634.v_assignment_summary.managers,
+       rpt_pbh634.v_assignment_summary.curr_ksm_manager
+From rpt_pbh634.v_assignment_summary
+Where rpt_pbh634.v_assignment_summary.curr_ksm_manager = 'Y'),
+
+--- Special Handling Codes 
+KSM_Special_Handling AS (select handle.ID_NUMBER,
+       handle.SPECIAL_HANDLING_CONCAT,
+       handle.NO_PHONE_IND,
+       handle.NO_EMAIL_IND
+from rpt_pbh634.v_entity_special_handling handle)
+
+
+--- Comments after 1:1 
+
+--- Moved Longest Views Up Top : KLC, Giving Summary, Club Leader
+--- Replace Prospect View with Assignment Summary
+--- Created Subquery for KAC, PHS
+--- Inner Joined Degrees on Email and Phone Tableau
+--- Added Special Handling Codes
+
+Select distinct deg.ID_NUMBER,
+       deg.RECORD_STATUS_CODE,
+       deg.REPORT_NAME,
+       deg.FIRST_KSM_YEAR AS KSM_Degree_Year,
+       Kellogg_Reunion_Year.class_year AS KSM_Reunion_Year,       
+       deg.DEGREES_VERBOSE,
+       deg.PROGRAM,
+       deg.PROGRAM_GROUP,
+       deg.CLASS_SECTION,
+       KSM_Address.HOUSEHOLD_CITY,
+       KSM_Address.HOUSEHOLD_STATE,
+       KSM_Address.HOUSEHOLD_GEO_CODES,
+       KSM_Address.HOUSEHOLD_COUNTRY,
+       KSM_Address.HOUSEHOLD_CONTINENT,
+
+--- Used Case When to indicated: Email, telephone, Reunion Committee, KAC, PHS, Club Leader, Notable Alumni, KLC Status       
+       
+       Case When KSM_Email.id_number is not null then 'Y' END as Email_on_file,
+       KSM_Special_Handling.NO_EMAIL_IND AS DO_NOT_EMAIL,
+       Case When KSM_telephone.id_number is not null then 'Y' END as telephone_on_file,
+       KSM_Special_Handling.NO_PHONE_IND AS DO_NOT_CALL,
+       KSM_Special_Handling.SPECIAL_HANDLING_CONCAT,
+       Case When REUNION_COMMITTEE2017.id_number Is not null then 'Y' End As Reunion_Committee2017,
+       Case When REUNION_COMMITTEE2016.id_number Is not null then 'Y' End As Reunion_Committee2016,
+       Case When REUNION_COMMITTEE2011.id_number Is not null then 'Y' End As Reunion_Committee2011,
+       Case When REUNION_COMMITTEE2006.id_number Is not null then 'Y' End As Reunion_Committee2006,
+       Case When REUNION_2017_PARTICIPANTS.id_number Is Not Null then 'Y' END AS Reunion_2017_Participant,
+       Case When REUNION_2016_PARTICIPANTS.id_number Is Not Null then 'Y' END AS Reunion_2016_Participant,
+       Case When KSM_KAC_PHS.committee_code Like '%KPH%' then 'Y'
+       Else '' END AS Pete_Henderson,
+       Case When KSM_KAC_PHS.committee_code Like '%KACNA%' then 'Y'
+       Else '' END AS KAC,
+       Case When KSM_CLUB_LEADERS.id_number Is Not Null then 'Y' End As KSM_Club_Leader,
+       Case When KSM_NOTABLE_ALUMNI.id_number is not null then 'Y' End As KSM_Notable_Alumni,
+       Case When KSM_KLC.id_number is not null then 'Y' End As KSM_KLC_Member, 
+       KSM_Last_Gift.Last_Gift_Date,
+       Case When KSM_NOTABLE_ALUMNI.id_number is not null then 'Y' End as KSM_Notable_Alumni,
+       KSM_Prospect.prospect_manager AS Prospect_Manager,
+       KSM_Prospect.managers AS KSM_Managers  
+       
+--- Degree Table Used as Base       
+            
+From rpt_pbh634.v_entity_ksm_degrees deg
+Inner Join Kellogg_Reunion_Year ON deg.ID_NUMBER = Kellogg_Reunion_Year.id_number
+Inner Join KSM_Address ON KSM_Address.id_number = deg.ID_NUMBER
+Left Join KSM_KLC ON KSM_KLC.id_number = deg.id_number 
+Left Join KSM_Last_Gift ON KSM_Last_Gift.id_number = deg.ID_NUMBER
+Left Join KSM_CLUB_LEADERS ON KSM_CLUB_LEADERS.id_number = deg.id_number 
+Left Join KSM_Email ON KSM_Email.id_number = deg.ID_NUMBER
+Left Join KSM_telephone ON KSM_telephone.id_number =deg.ID_NUMBER
+Left Join REUNION_COMMITTEE2017 ON REUNION_COMMITTEE2017.id_number = deg.ID_NUMBER
+Left Join REUNION_COMMITTEE2016 ON REUNION_COMMITTEE2016.id_number = deg.ID_NUMBER
+Left Join REUNION_COMMITTEE2011 ON REUNION_COMMITTEE2011.id_number = deg.ID_NUMBER
+Left Join REUNION_COMMITTEE2006 ON REUNION_COMMITTEE2006.id_number = deg.id_number 
+Left Join REUNION_2017_PARTICIPANTS ON REUNION_2017_PARTICIPANTS.id_number = deg.ID_NUMBER
+Left Join REUNION_2016_PARTICIPANTS ON REUNION_2016_PARTICIPANTS.id_number = deg.ID_NUMBER
+Left Join KSM_NOTABLE_ALUMNI ON KSM_NOTABLE_ALUMNI.id_number = deg.ID_NUMBER
+Left Join KSM_KAC_PHS ON KSM_KAC_PHS.id_number = deg.ID_NUMBER
+Left Join KSM_NOTABLE_ALUMNI ON KSM_NOTABLE_ALUMNI.id_number = deg.id_number
+Left Join KSM_Prospect ON KSM_Prospect.ID_NUMBER = deg.ID_NUMBER
+Left Join KSM_Special_Handling ON KSM_Special_Handling.id_number = deg.ID_NUMBER
