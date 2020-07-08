@@ -1,0 +1,88 @@
+With ksm_af_last_gift AS (SELECT
+  ID_NUMBER
+  ,REPORT_NAME
+  ,MAX(DATE_OF_RECORD) AS LAST_AF_GIFT
+FROM RPT_PBH634.V_KSM_GIVING_TRANS_HH
+WHERE AF_FLAG = 'Y'
+GROUP BY ID_NUMBER, REPORT_NAME),
+
+--- KSM Global Advisory Board
+
+KSM_GAB AS (Select committee.id_number,
+       committee.committee_code,
+       TMS_COMMITTEE_TABLE.short_desc,
+       committee.start_dt,
+       committee.class_year,
+       committee.committee_status_code
+From committee
+
+Left Join TMS_COMMITTEE_TABLE ON TMS_COMMITTEE_TABLE.committee_code = committee.committee_code
+Where committee.committee_code IN ('U')
+And committee.committee_status_code = 'C'),
+
+--- KSM Pete Henderson
+
+KSM_KPH AS (Select committee.id_number,
+       committee.committee_code,
+       TMS_COMMITTEE_TABLE.short_desc,
+       committee.start_dt,
+       committee.class_year,
+       committee.committee_status_code
+From committee
+
+Left Join TMS_COMMITTEE_TABLE ON TMS_COMMITTEE_TABLE.committee_code = committee.committee_code
+Where committee.committee_code IN ('KPH')
+And committee.committee_status_code = 'C'),
+
+--- KSM Kellogg Alumni Council
+
+KSM_KAC AS (Select committee.id_number,
+       committee.committee_code,
+       TMS_COMMITTEE_TABLE.short_desc,
+       committee.start_dt,
+       committee.class_year,
+       committee.committee_status_code
+From committee
+
+Left Join TMS_COMMITTEE_TABLE ON TMS_COMMITTEE_TABLE.committee_code = committee.committee_code
+Where committee.committee_code IN ('KACNA')
+And committee.committee_status_code = 'C'),
+
+
+--- KSM Emails
+
+KSM_Email AS (Select Email.Id_Number,
+       Email.Email_Type_Code,
+       Email.Email_Status_Code,
+       Email.Email_Code,
+       Email.Email_Address,
+       Email.Preferred_Ind
+From Email
+Inner Join rpt_pbh634.v_entity_ksm_degrees ON rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER = Email.Id_Number
+Where Email.Preferred_Ind = 'Y')
+
+Select Distinct vt_alumni_market_sheet.id_number,
+       vt_alumni_market_sheet.REPORT_NAME,
+       vt_alumni_market_sheet.RECORD_STATUS_CODE,
+       vt_alumni_market_sheet.FIRST_KSM_YEAR,
+       vt_alumni_market_sheet.PROGRAM,
+       vt_alumni_market_sheet.PROGRAM_GROUP,
+       vt_alumni_market_sheet.Gender_Code,
+       vt_alumni_market_sheet.fld_of_work,
+       vt_alumni_market_sheet.HOUSEHOLD_COUNTRY,
+       v_ksm_r.short_desc AS KSM_RACE,
+       KSM_GAB.short_desc AS KSM_GAB,
+       KSM_KAC.short_desc AS KSM_KAC,
+       KSM_KPH.short_desc AS KSM_Pete_Henderson,
+       ksm_af_last_gift.Last_AF_Gift,
+       Case When KSM_Email.email_address is not null then 'Y' Else 'N' END AS Preferred_Email_On_File
+
+From vt_alumni_market_sheet
+Left Join ksm_af_last_gift ON ksm_af_last_gift.id_number = vt_alumni_market_sheet.id_number
+Left Join KSM_GAB ON KSM_GAB.id_number = vt_alumni_market_sheet.id_number
+Left Join KSM_KAC ON KSM_KAC.id_number = vt_alumni_market_sheet.id_number
+Left Join KSM_KPH ON KSM_KPH.id_number = vt_alumni_market_sheet.id_number
+Left Join v_ksm_r ON v_ksm_r.ID_NUMBER = vt_alumni_market_sheet.id_number
+Left Join KSM_Email ON KSM_Email.id_number = vt_alumni_market_sheet.id_number
+Where vt_alumni_market_sheet.HOUSEHOLD_COUNTRY IN ('Canada', 'South Africa', 'Israel', 'Singapore', 'Switzerland','Brazil', 'Germany', 'Hong Kong', 'Japan', 'Nigeria')
+Order By vt_alumni_market_sheet.HOUSEHOLD_COUNTRY ASC
