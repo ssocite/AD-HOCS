@@ -1,0 +1,28 @@
+With KSM_Email AS (Select Email.Id_Number,
+       Email.Email_Type_Code,
+       Email.Email_Status_Code,
+       Email.Email_Code,
+       Email.Email_Address,
+       Email.Email_Format_Code,
+       Email.Preferred_Ind
+From Email
+Where Email.Preferred_Ind = 'Y')
+
+Select vt_alumni_market_sheet.id_number,
+       vt_alumni_market_sheet.REPORT_NAME,
+       vt_alumni_market_sheet.RECORD_STATUS_CODE,
+       vt_alumni_market_sheet.Gender_Code,
+       vt_alumni_market_sheet.PROGRAM,
+       vt_alumni_market_sheet.PROGRAM_GROUP,
+       vt_alumni_market_sheet.FIRST_KSM_YEAR,
+       vt_alumni_market_sheet.fld_of_work,
+       vt_alumni_market_sheet.job_title,
+       vt_alumni_market_sheet.employer_name,
+       vt_alumni_market_sheet.HOUSEHOLD_CITY,
+       vt_alumni_market_sheet.HOUSEHOLD_COUNTRY,
+       KSM_Email.Email_Address
+From vt_alumni_market_sheet
+Left Join KSM_Email ON KSM_Email.id_number = vt_alumni_market_sheet.id_number
+Where vt_alumni_market_sheet.HOUSEHOLD_COUNTRY = 'Brazil'
+And vt_alumni_market_sheet.HOUSEHOLD_CITY = 'Sao Paulo'
+Order By vt_alumni_market_sheet.REPORT_NAME ASC
