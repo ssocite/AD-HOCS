@@ -1,0 +1,30 @@
+Select rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER,
+       Entity.Gender_Code,
+       rpt_pbh634.v_entity_ksm_degrees.REPORT_NAME,
+       rpt_pbh634.v_entity_ksm_degrees.RECORD_STATUS_CODE,
+       rpt_pbh634.v_entity_ksm_degrees.DEGREES_VERBOSE,
+       rpt_pbh634.v_entity_ksm_degrees.FIRST_KSM_YEAR,
+       rpt_pbh634.v_entity_ksm_degrees.PROGRAM,
+       rpt_pbh634.v_entity_ksm_degrees.PROGRAM_GROUP,
+       rpt_pbh634.v_entity_ksm_degrees.CLASS_SECTION,
+       Employment.Primary_Emp_Ind,
+       Employment.Job_Status_Code,
+       Employment.Employer_Name1,
+       Employment.Job_Title
+From rpt_pbh634.v_entity_ksm_degrees
+Inner Join Entity On rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER = Entity.Id_Number
+Inner Join Employment ON rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER = Employment.Id_Number
+Where Entity.Gender_Code = 'F'
+And rpt_pbh634.v_entity_ksm_degrees.RECORD_STATUS_CODE = 'A'
+And Employment.Primary_Emp_Ind = 'N'
+And (UPPER(employment.job_title) LIKE '%CHIEF%'
+    OR  UPPER(employment.job_title) LIKE '%CMO%'
+    OR  UPPER(employment.job_title) LIKE '%CEO%'
+    OR  UPPER(employment.job_title) LIKE '%CFO%'
+    OR  UPPER(employment.job_title) LIKE '%COO%'
+    OR  UPPER(employment.job_title) LIKE '%CIO%'
+    OR  UPPER(employment.job_title) LIKE '%President%'
+    OR  UPPER(employment.job_title) LIKE '%Partner%'
+    OR  UPPER(employment.job_title) LIKE '%Chairman%'
+    OR  UPPER(employment.job_title) LIKE '%Owner%')
+Order By rpt_pbh634.v_entity_ksm_degrees.REPORT_NAME
