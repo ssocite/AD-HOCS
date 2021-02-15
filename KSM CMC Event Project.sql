@@ -7,47 +7,7 @@ with ksm_event AS (select event.event_id,
        event.start_dt_calc
 from rpt_pbh634.v_nu_events event
 
-/*
 
-Science of Science & Innovation with Professor Dashun Wang 23644
-Kellogg Update for Investors 23376
-Matthew Temple: Leading with Authenticity & Compassion 23671
-Matthew Temple: Cultivating Resilience in Challenging Times 23013
-KSM Conversations with Distinguished Alumni: Ellen Kullman 23767
-KSM Conversations with Distinguished Alumni: David Kabiller 23334
-KSM Conversations with Distinguished Alumni: Ada Osakwe 11 23766
-KSM Conversations Distinguished Alumni:Bernie Banks 23787
-KSM Conversations with Distinguished Alumni: Vinita Gupta 23765
-KSM More than Words: Diversity, Equity, and Inclusion (DEI) 23777
-
-**** New Events to Add Per Lisa Request ***
-
-24350 This Is Kellogg: Spotlight on DEI 1/15/2021
-24265 The Insightful Leader Live:Innovation Work in 21st Century  12/17/2020
-24181 Conversations with Distinguished Alumni: Bernard Dalle  12/4/2020
-24223 This is Kellogg: Spotlight on AI 12/3/2020  12/3/2020
-24110 KSM Conversations with Distinguished Alumni: David Kohler 92  11/16/2020
-24033 Conversations with Distinguished Alumni: Stephanie Gallo 99 10/28/2020
-24031 KSM Webinar - Influencing Up Oct 27, 2020
-24020 KSM Webinar - Mastering Networking  10/14/2020
-24304 This is Kellogg: Spotlight on AI 10/20/2020
-24153 This is Kellogg: Spotlight on AI 9/30/2020
-24303 KSM Conversations with Distinguished Alumni: Edith Cooper 9/14/2020
-23786 Matthew Temple:Putting Your Degree To Work For Social Impact  9/6/2020
-23671 Matthew Temple: Leading with Authenticity & Compassion  8/19/2020
-23798 Matthew Temple: Managing Career During Pandemic (Joseph Liu)  8/12/2020
-23799 Matthew Temple Webinar- Job Searching In Your 50s 7/28/2020
-23800 Matthew Temple: Building Personal Brand/Creating Your Future  7/14/2020
-23805 Matthew Temple: Mastering Virtual Interviews  6/30/2020
-23806 Matthew Temple: Optimizing Body, Mind and Spirit  6/17/2020
-23804 Matthew Temple: Virtual Wkshp - DYL 6/11/2020
-23801 Matthew Temple - Disciplined Listening: Michael Reddington  5/28/2020
-23802 Matthew Temple: Ask Our Career Coaches' 5/8/2020
-23803 Matthew Temple:Leveraging Alumni Career Resources Job Search  4/29/2020
-23797 Matthew Temple: Leading Through Adversity (Jodi Glickman) 4/15/2020
-
-
-*/
 
 where event.event_id in ('23644','23376','23671','23013','23767','23334','23766','23787','23765','23777','24350','24265',
 '24181','24223','24110','24033','24031','24020','24304','24303','23786','23671','23798','23799','23800','23805','23806','23804',
