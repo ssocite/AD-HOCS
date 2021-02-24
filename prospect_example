@@ -1,0 +1,53 @@
+With ksm_giving as
+
+
+(Select Give.ID_NUMBER,
+       Give.HOUSEHOLD_RPT_NAME,
+       Give.NGC_CFY,
+       Give.NGC_PFY1,
+       Give.NGC_PFY2,
+       Give.NGC_PFY3
+From RPT_PBH634.v_Ksm_Giving_Summary Give),
+
+ksm_prospect AS (
+Select TP.ID_NUMBER,
+       TP.PREF_MAIL_NAME,
+       TP.LAST_NAME,
+       TP.FIRST_NAME,
+       TP.PROSPECT_MANAGER,
+       TP.EVALUATION_RATING,
+       TP.OFFICER_RATING
+
+From nu_prs_trp_prospect TP
+
+Where TP.EVALUATION_RATING IN ('A7 $1M - $1.9M','A6 $2M - $4.9M','A5 $5M - $9.9M',
+
+'A4 $10M - $24.9M','A3 $25M - $49.9M')
+
+Or
+
+TP.OFFICER_RATING IN ('A7 $1M - $1.9M',
+
+'A6 $2M - $4.9M', 'A5 $5M - $9.9M', 'A4 $10M - $24.9M', 'A3 $25M - $49.9M'))
+
+
+Select
+market.id_number,
+market.REPORT_NAME,
+market.RECORD_STATUS_CODE,
+market.FIRST_KSM_YEAR,
+market.PROGRAM,
+market.PROGRAM_GROUP,
+market.HOUSEHOLD_CITY,
+market.HOUSEHOLD_STATE,
+market.HOUSEHOLD_ZIP,
+market.HOUSEHOLD_GEO_CODES,
+market.HOUSEHOLD_COUNTRY,
+ksm_prospect.PROSPECT_MANAGER,
+ksm_prospect.EVALUATION_RATING,
+ksm_prospect.OFFICER_RATING
+
+From vt_alumni_market_sheet market
+Inner Join ksm_prospect ON ksm_prospect.ID_NUMBER = market.id_number
+Left Join ksm_giving ON ksm_giving.id_number = market.id_number
+Order By market.REPORT_NAME ASC
