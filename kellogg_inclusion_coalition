@@ -1,0 +1,29 @@
+Select comm.id_number,
+
+       entity.pref_mail_name,
+
+       TMS_COMMITTEE_TABLE.short_desc,
+
+       comm.committee_code,
+
+       comm.start_dt,
+
+       comm.committee_status_code,
+
+       TMS_COMMITTEE_ROLE.short_desc,
+
+       comm.xcomment
+
+From committee comm
+
+Left Join TMS_COMMITTEE_TABLE ON TMS_COMMITTEE_TABLE.committee_code = comm.committee_code
+
+Left Join TMS_COMMITTEE_ROLE ON TMS_COMMITTEE_ROLE.committee_role_code = comm.committee_role_code
+
+Left Join entity on entity.id_number = comm.id_number
+
+Where comm.committee_code IN ('KIC')
+
+And comm.committee_status_code = 'C'
+
+Order By TMS_COMMITTEE_ROLE.short_desc asc
