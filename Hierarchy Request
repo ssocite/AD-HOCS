@@ -1,4 +1,4 @@
-"/*  Ad Hoc Request for Casey Reid 2/10/2021
+/*  Ad Hoc Request for Casey Reid 2/10/2021
 
 
 Please do not include any trustees/GAB members in this pull
@@ -207,4 +207,4 @@ OR KSM_KALC.short_desc is not null
 OR KSM_Reunion.short_desc is not null
 OR KSM_CL.id_number is not null
 OR KSM_mentor.short_desc is not null)
-Order By deg.REPORT_NAME ASC"
+Order By deg.REPORT_NAME ASC
