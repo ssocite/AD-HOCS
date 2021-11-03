@@ -1,0 +1,32 @@
+--- Reunion Classes FY 19 and FY 18
+
+With Kellogg_Reunion_Year As
+( Select aff.id_number,
+         aff.affil_code,
+         aff.affil_level_code,
+         aff.class_year
+From affiliation aff
+Where aff.affil_code = 'KM'
+And aff.affil_level_code = 'RG'
+And aff.class_year IN ('2018','2014','2009','2004','1999',
+'1994','1989','1984','1979','1974','1969','1968','1967','1966','1965','1964','1963','1962','1961','1960','1959'))
+
+Select Distinct
+deg.ID_NUMBER,
+give.HOUSEHOLD_ID,
+deg.RECORD_STATUS_CODE,
+Case When Kellogg_Reunion_Year.class_year IN ('2018','2014','2009','2004','1999','1994','1989','1984','1979','1974','1969',
+'1968','1967','1966','1965','1964','1963','1962','1961','1960','1959')
+  then 'Reunion_2019_Class'
+Else ' '
+  End As Reunion_Class,
+Kellogg_Reunion_Year.class_year,
+give.NGC_PFY1 AS NGC_FY_19,
+give.NGC_PFY2 AS NGC_FY_18,
+give.NGC_PFY3 AS NGC_FY_17,
+give.NGC_PFY4 AS NGC_FY_16,
+give.NGC_PFY5 AS NGC_FY_15
+From rpt_pbh634.v_entity_ksm_degrees deg
+Inner Join rpt_pbh634.v_ksm_giving_summary give on give.HOUSEHOLD_ID = deg.ID_NUMBER
+Inner Join Kellogg_Reunion_Year ON deg.ID_NUMBER = Kellogg_Reunion_Year.id_number
+Order By Kellogg_Reunion_Year.class_year ASC
