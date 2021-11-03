@@ -1,0 +1,117 @@
+With
+-- Employment table subquery
+employ As (
+  Select id_number
+  , job_title
+  , employment.fld_of_work_code
+  , fow.short_desc As fld_of_work
+  , employer_name1,
+    -- If there's an employer ID filled in, use the entity name
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+  Where employment.primary_emp_ind = 'Y'
+),
+
+KSM_Email AS (select email.id_number,
+       email.email_address,
+       email.preferred_ind,
+       email.forwards_to_email_address
+From email
+Inner Join rpt_pbh634.v_entity_ksm_degrees deg on deg.ID_NUMBER = email.id_number
+Where email.preferred_ind = 'Y'),
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.NO_EMAIL_IND,
+       spec.SPECIAL_HANDLING_CONCAT
+From rpt_pbh634.v_entity_special_handling spec),
+
+KSM_Interest as (select interest.id_number,
+Listagg (TMS_INTEREST.short_desc, ';  ') Within Group (Order By TMS_INTEREST.short_desc) As Interest_indicator
+From Interest
+Left Join TMS_INTEREST on TMS_INTEREST.interest_code = interest.interest_code
+And Interest.Interest_Code IN ('L18', 'L53', 'L59', 'L61', 'L66', 'L71', 'L73', 'L72',
+'L74', 'L75', 'L38', 'L123', 'L93','L97','L106','L109','L114','L115','L116')
+group by interest.id_number)
+
+Select Distinct
+rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER,
+rpt_pbh634.v_entity_ksm_degrees.REPORT_NAME,
+KSM_INTEREST.Interest_indicator,
+rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_COUNTRY,
+rpt_pbh634.v_entity_ksm_degrees.RECORD_STATUS_CODE,
+rpt_pbh634.v_entity_ksm_degrees.FIRST_KSM_YEAR,
+rpt_pbh634.v_entity_ksm_degrees.PROGRAM,
+rpt_pbh634.v_entity_ksm_degrees.PROGRAM_GROUP,
+Entity.Gender_Code,
+Employ.fld_of_work_code,
+Employ.fld_of_work,
+Employ.employer_name,
+Employ.job_title,
+rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_CITY,
+rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_STATE,
+rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_ZIP,
+give.NGC_CFY,
+give.NGC_PFY1,
+give.NGC_PFY2,
+give.NGC_PFY3,
+give.NGC_PFY4,
+give.NGC_PFY5,
+rpt_pbh634.v_assignment_summary.prospect_manager,
+rpt_pbh634.v_assignment_summary.lgos,
+rpt_pbh634.v_assignment_summary.managers,
+KSM_Email.email_address,
+KSM_Spec.no_email_ind
+From rpt_pbh634.v_entity_ksm_degrees
+Inner Join Entity on rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER = Entity.Id_Number
+Left Join KSM_INTEREST on KSM_INTEREST.id_number = rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER
+Left Join rpt_pbh634.v_entity_ksm_households On rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER = rpt_pbh634.v_entity_ksm_households.ID_NUMBER
+Left Join Employ On rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER = Employ.Id_Number
+Left Join rpt_pbh634.v_assignment_summary on rpt_pbh634.v_assignment_summary.id_number = rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER
+Left Join rpt_pbh634.v_ksm_giving_summary give on give.ID_NUMBER = rpt_pbh634.v_entity_ksm_degrees.ID_NUMBER
+Left Join KSM_Email on KSM_Email.id_number = rpt_pbh634.v_entity_ksm_degrees.id_number
+Left Join KSM_Spec on KSM_Spec.id_number = rpt_pbh634.v_entity_ksm_degrees.id_number
+Where rpt_pbh634.v_entity_ksm_degrees.RECORD_STATUS_CODE = 'A'
+
+--- *** Can  you pull a list of the following: Alumni in social impact in the Philippines, Hong Kong and other countries in East or Southeast Asia
+--- East Asia: China, Mongolia, North Korea, South Korea, Japan, Hong Kong, Taiwan, and Macau.
+--- Southeast Asia: Brunei, Cambodia, Indonesia, Laos, Malaysia, Myanmar, Philippines, Singapore, Thailand, Timor Leste, Vietnam, Christmas Island, Cocos Islands.
+
+And rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_COUNTRY in ('China','Mongolia','Philippines','Hong Kong',
+'North Korea', 'South Korea', 'Japan', 'Taiwan', 'Macau',
+'Brunei', 'Cambodia', 'East Timor', 'Indonesia', 'Laos', 'Malaysia', 'Myanmar', 'Singapore',
+'Thailand', 'Timor Leste', 'Vietnam', 'Christmas Island', 'Cocos Islands')
+
+And  rpt_pbh634.v_entity_ksm_degrees.PROGRAM_GROUP != '%NONGRD%'
+
+And KSM_INTEREST.Interest_indicator is not null
+
+Order By rpt_pbh634.v_entity_ksm_households.HOUSEHOLD_COUNTRY
+
+---- Interest: Social Impact
+--- L18: Civic & Social Organization
+--- L38: Environmental Services
+--- L53: Government Relations
+--- L59: Human Resources
+--- L61: Individual & Family Services
+--- L66: International Affairs
+--- L71: Judiciary
+--- L72: Law Enforcement
+--- L73: Law Practice
+--- L74: Legal Services
+--- L75: Legislative Office
+--- L93: Museums and Institutions
+--- L97: Non-Profit Organization Management
+--- L106: Philanthropy
+--- L114: Public Policy
+--- L115: Public Relations and Communications
+--- L116: Public Safety
+--- L123: Renewables & Environment
