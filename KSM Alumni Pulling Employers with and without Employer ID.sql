@@ -17,10 +17,10 @@ With employ As (
 
   From employment
 
- Where  (employer_name1 Like '%Microsoft%'
-  or employer_name1 Like '%Chevron%'
-  or employment.employer_id_number = '0000269118'
-or employment.employer_id_number = '0000446116')
+ Where  (employer_name1 Like ---- Your Company Name Here
+  or employer_name1 Like --- Your Company Name Here
+  or employment.employer_id_number = --- Your Company Employer ID Here
+or employment.employer_id_number = --- Your Company Employer ID Here)
 and employment.primary_emp_ind = 'Y'
 and employment.job_status_code = 'C'),
 
