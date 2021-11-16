@@ -1,0 +1,101 @@
+--- Pulling all three reunion years really quick! 
+--- Reunions: 2020, 2021 and 2022
+
+With manual_dates As (
+Select
+  2021 AS pfy
+  ,2022 AS cfy
+  From DUAL
+),
+
+KSM_DEGREES AS (
+ SELECT
+   KD.ID_NUMBER
+   ,KD.PROGRAM
+   ,KD.PROGRAM_GROUP
+   ,KD.CLASS_SECTION
+ FROM RPT_PBH634.V_ENTITY_KSM_DEGREES KD
+ WHERE KD.PROGRAM IN ('EMP', 'EMP-FL', 'EMP-IL', 'EMP-CAN', 'EMP-GER', 'EMP-HK', 'EMP-ISR', 'EMP-JAN', 'EMP-CHI', 'FT', 'FT-1Y', 'FT-2Y', 'FT-CB', 'FT-EB', 'FT-JDMBA', 'FT-MMGT', 'FT-MMM', 'TMP', 'TMP-SAT',
+'TMP-SATXCEL', 'TMP-XCEL')
+)
+
+,KSM_REUNION AS (
+SELECT
+A.*
+,GC.P_GEOCODE_Desc
+FROM AFFILIATION A
+CROSS JOIN manual_dates MD
+INNER JOIN KSM_DEGREES KD
+ON A.ID_NUMBER = KD.ID_NUMBER
+LEFT JOIN RPT_DGZ654.V_GEO_CODE GC
+  ON A.ID_NUMBER = GC.ID_NUMBER
+    AND GC.ADDR_PREF_IND = 'Y'
+     AND GC.GEO_STATUS_CODE = 'A'
+WHERE TO_NUMBER(NVL(TRIM(A.CLASS_YEAR),'1')) IN (
+--- 1st Milestone: 2021, 2020 and 2019 
+MD.CFY-1, MD.CFY-2, MD.CFY-3,
+--- 5th Milestone: 2017, 2016, 2015
+MD.CFY-5, MD.CFY-6, MD.CFY-7,
+--- 10th Milestone: 2012, 2011, 2010
+MD.CFY-10, MD.CFY-11, MD.CFY-12,
+--- 15th Milestone: 2007, 2006, 2005
+MD.CFY-15, MD.CFY-16, MD.CFY-17,
+--- 20th Milestone: 2002, 2001, 2000
+MD.CFY-20, MD.CFY-21, MD.CFY-22,
+--- 25th Milestone: 1997, 1996, 1995
+MD.CFY-25, MD.CFY-26, MD.CFY-27,
+--- 30th Milestone: 1992, 1991, 1990
+MD.CFY-30, MD.CFY-31, MD.CFY-32,
+--- 35th Milestone: 1987, 1986, 1985
+MD.CFY-35, MD.CFY-36, MD.CFY-37,
+--- 40th Milestone: 1982, 1981, 1980
+MD.CFY-40, MD.CFY-41, MD.CFY-42,
+--- 45th Milestone: 1977, 1976, 1975
+MD.CFY-45, MD.CFY-46, MD.CFY-47,
+--- 50th Milestone
+MD.CFY-50, MD.CFY-51, MD.CFY-52,
+--- Half Century: 1960-1969
+MD.CFY-53, MD.CFY-54,
+MD.CFY-55, MD.CFY-56,
+MD.CFY-57, MD.CFY-58, MD.CFY-59, MD.CFY-60,
+MD.CFY-61, MD.CFY-62)
+AND A.AFFIL_CODE = 'KM'
+AND A.AFFIL_LEVEL_CODE = 'RG'
+),
+
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.NO_EMAIL_IND,
+       spec.NO_CONTACT
+From rpt_pbh634.v_entity_special_handling spec)
+
+SELECT DISTINCT
+  E.ID_NUMBER
+  ,E.RECORD_STATUS_CODE
+  ,E.GENDER_CODE
+  ,E.FIRST_NAME AS FIRST_NAME_1
+  ,E.MIDDLE_NAME AS MIDDLE_NAME_1
+  ,E.LAST_NAME AS LAST_NAME_1
+  ,KR.CLASS_YEAR
+  ,KD.CLASS_SECTION
+  , case when KR.class_year IN ('2021','2017','2012','2007','2002','1997','1992','1987','1982','1977',
+  '1972') then 'Reunion_2022'
+  when KR.class_year IN ('2020','2016','2011','2006','2001','1996','1991','1986','1981','1976',
+  '1971') then 'Reunion_2021'
+  when KR.class_year IN ('2019','2015','2010','2005','2000','1995','1990','1985','1980','1975','1970') then 'Reunion_2020'
+  when KR.class_year IN ('1969','1968','1967','1966',
+    '1965','1964','1963','1962','1961','1960','1959') then 'Half_Century'
+    End As Reunion_Grouping
+  ,KD.PROGRAM AS DEGREE_PROGRAM
+  ,KD.PROGRAM_GROUP
+  , KSM_Spec.NO_EMAIL_IND
+  , KSM_Spec.NO_CONTACT
+FROM ENTITY E
+INNER JOIN KSM_REUNION KR
+ON E.ID_NUMBER = KR.ID_NUMBER
+LEFT JOIN RPT_PBH634.V_ENTITY_KSM_DEGREES KD
+ON E.ID_NUMBER = KD.ID_NUMBER
+LEFT JOIN KSM_Spec ON KSM_Spec.id_number = e.id_number
+Where KSM_spec.NO_EMAIL_IND is null
+and KSM_spec.NO_CONTACT is null
+ORDER BY KR.Class_Year ASC
