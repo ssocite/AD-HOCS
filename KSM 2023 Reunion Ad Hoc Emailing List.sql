@@ -50,6 +50,18 @@ AND A.AFFIL_CODE = 'KM'
 AND A.AFFIL_LEVEL_CODE = 'RG'
 ),
 
+--- Spouse Reunion Year Only for 2023
+
+spouse_RY as (select h.SPOUSE_ID_NUMBER,
+h.SPOUSE_PREF_MAIL_NAME,
+       h.SPOUSE_SUFFIX,
+       h.SPOUSE_DEGREES_CONCAT,
+       h.SPOUSE_PROGRAM,
+       h.SPOUSE_PROGRAM_GROUP,
+       KSM_REUNION.CLASS_YEAR
+from h
+inner join KSM_REUNION ON KSM_REUNION.ID_number = h.SPOUSE_ID_NUMBER),
+
 KSM_Alt AS (select distinct email.id_number
        , Listagg (email.email_address, ';  ') Within Group (Order By email.email_address) As Alt_Home_Email
 From email
@@ -195,13 +207,17 @@ GROUP BY GIFT_DONOR_ID
 )
 
 Select Distinct h.ID_NUMBER,
-       h.SPOUSE_ID_NUMBER,
        h.PREF_MAIL_NAME,
-       h.SPOUSE_PREF_MAIL_NAME,
        h.RECORD_STATUS_CODE,
        h.PROGRAM,
        h.PROGRAM_GROUP,
        KR.class_year,
+       spouse_RY.SPOUSE_ID_NUMBER,
+       spouse_RY.SPOUSE_PREF_MAIL_NAME,
+       spouse_RY.SPOUSE_SUFFIX,
+       spouse_RY.SPOUSE_PROGRAM,
+       spouse_RY.SPOUSE_PROGRAM_GROUP,
+       CASE WHEN spouse_RY.SPOUSE_ID_NUMBER is not null then spouse_RY.CLASS_YEAR else '' End as Spouse_Class_year,
        h.HOUSEHOLD_CITY,
        h.HOUSEHOLD_STATE,
        h.HOUSEHOLD_GEO_PRIMARY_DESC,
@@ -300,6 +316,8 @@ LEFT JOIN KSM_MONEY KSMM
 ON h.ID_NUMBER = KSMM.GIFT_DONOR_ID
 LEFT JOIN KSM_MATCHES KM
 ON h.ID_NUMBER = KM.GIFT_DONOR_ID
+Left Join spouse_RY
+on spouse_RY.SPOUSE_ID_NUMBER = h.SPOUSE_ID_NUMBER
 INNER JOIN KSM_REUNION KR on KR.id_number = h.id_number
 /* Please remove the following:
 -  Do not contact
