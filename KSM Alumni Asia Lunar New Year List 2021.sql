@@ -20,24 +20,6 @@ From email
 Inner Join rpt_pbh634.v_entity_ksm_degrees deg on deg.ID_NUMBER = email.id_number
 Where email.preferred_ind = 'Y'),
 
-/*
-
-manual_adds as (select entity.id_number
-from entity 
-where  entity.id_number IN (0000296253  ,
-0000462015  ,
-0000548666  ,
-0000328796  ,
-0000595858  ,
-0000718559  ,
-0000732640  ,
-0000289491  ,
-0000653298  ,
-0000484537  ,
-0000649400) ),
-
-*/
-
 --- nickname: Using Zach's Dean Salutation
 
 nickname as (select d.ID_NUMBER,
@@ -58,7 +40,7 @@ From rpt_pbh634.v_entity_special_handling spec),
 
 keba As (Select asia.id_number,
        asia.short_desc
-       FROM TABLE(rpt_pbh634.ksm_pkg.tbl_committee_asia) asia)
+       FROM TABLE(rpt_pbh634.ksm_pkg_tmp.tbl_committee_asia) asia)
 
 
 select market.id_number,
