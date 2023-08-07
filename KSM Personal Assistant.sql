@@ -59,7 +59,7 @@ pa.short_desc as contact_person_type_desc,
 pa.extract_email as pa_email,
 pa.xcomment as pa_xcomment
 from rpt_pbh634.v_entity_ksm_households h
-left join pa on pa.id_number = h.id_number
+inner join pa on pa.id_number = h.id_number
 left join e on e.id_number = h.id_number
-left join entity on entity.id_number = h.id_number
+inner join entity on entity.id_number = h.id_number
 order by entity.last_name ASC
