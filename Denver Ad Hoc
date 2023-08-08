@@ -1,0 +1,160 @@
+With ksm_giving as
+(Select Give.ID_NUMBER,
+       give.NGC_LIFETIME,
+       give.NU_MAX_HH_LIFETIME_GIVING,
+       give.CRU_CFY,
+       give.CRU_PFY1,
+       give.CRU_PFY2,
+       give.CRU_PFY3,
+       give.CRU_PFY4,
+       give.CRU_PFY5
+From RPT_PBH634.v_Ksm_Giving_Summary Give),
+
+
+--- KLC LYBUNTS
+
+LYBUNT as (
+
+select a.id,
+       a.tot_kgifts_pfy,
+       a.yr
+from RPT_ABM1914.T_AF1_KLCLYBUNTS_FY23 a),
+
+--- KLC PYBUNTS
+
+PYBUNT as (select b.id,
+       b.tot_kgifts_21,
+       b.tot_kgifts_20,
+       b.tot_kgifts_19,
+       b.tot_kgifts_18,
+       b.yr
+from RPT_ABM1914.T_AF1_KLCPYBUNTS_FY23 b),
+
+--- Prospects
+
+prospect as (select p.id_number
+from RPT_ABM1914.T_KLC_PROSPECTS p),
+
+---- Final
+fin as (
+select entity.id_number,
+LYBUNT.tot_kgifts_pfy,
+PYBUNT.tot_kgifts_21,
+PYBUNT.tot_kgifts_20,
+PYBUNT.tot_kgifts_19,
+PYBUNT.tot_kgifts_18,
+CASE WHEN LYBUNT.ID IS NOT NULL THEN 'KLC Lybunt'
+WHEN PYBUNT.ID IS NOT NULL THEN 'KLC Pybunt'
+WHEN PROSPECT.ID_NUMBER IS NOT NULL THEN 'KLC Prospect'
+ELSE 'Participation' END AS SEGMENTATION
+from entity
+left join  LYBUNT on LYBUNT.id = entity.id_number
+left join  PYBUNT on PYBUNT.id = entity.id_number
+left join prospect on prospect.id_number = entity.id_number
+where LYBUNT.id is not null
+or PYBUNT.id is not null
+or prospect.id_number is not null)
+
+Select
+m.id_number,
+m.REPORT_NAME,
+m.RECORD_STATUS_CODE,
+entity.institutional_suffix,
+m.FIRST_KSM_YEAR,
+m.PROGRAM,
+m.PROGRAM_GROUP,
+m.CLASS_SECTION,
+m.birth_year,
+m.Gender_Code,
+m.fld_of_work_code,
+m.fld_of_work,
+m.employer_name,
+m.job_title,
+m.HOUSEHOLD_CITY,
+m.HOUSEHOLD_STATE,
+m.HOUSEHOLD_ZIP,
+m.HOUSEHOLD_GEO_CODES,
+m.HOUSEHOLD_COUNTRY,
+m.HOUSEHOLD_CONTINENT,
+m.business_city,
+m.business_state_code,
+m.business_zipcode,
+m.business_country,
+m.BUSINESS_GEO_CODE,
+m.prospect_manager,
+m.lgos,
+m.managers,
+m.EVALUATION_RATING,
+m.OFFICER_RATING,
+m.pref_email_ind,
+m.GAB,
+m.TRUSTEE,
+m.EBFA,
+m.NO_CONTACT,
+m.NO_SOLICIT,
+m.NO_PHONE_IND,
+m.NO_EMAIL_IND,
+m.NO_MAIL_IND,
+m.SPECIAL_HANDLING_CONCAT,
+ksm_giving.NGC_LIFETIME as KSM_NGC_Lifetime,
+ksm_giving.NU_MAX_HH_LIFETIME_GIVING,
+i.LAST_GIFT_DATE,
+i.LAST_GIFT_ALLOC,
+i.LAST_GIFT_RECOGNITION_CREDIT,
+i.CYD,
+ksm_giving.CRU_CFY,
+ksm_giving.CRU_PFY1,
+ksm_giving.CRU_PFY2,
+ksm_giving.CRU_PFY3,
+ksm_giving.CRU_PFY4,
+ksm_giving.CRU_PFY5,
+---- Combine Amy LYBUNT/PYBUNT/PROSPECT
+fin.SEGMENTATION,
+i.AF_10K_MODEL_TIER,
+i.AF_10K_MODEL_SCORE,
+i.contact_date,
+i.credited_name,
+i.contact_type,
+i.description_,
+i.prop1_ask_date,
+i.prop1_close_date,
+i.prop1_managers,
+i.prop1_ask_amt,
+i.prop1_anticipated_amt,
+i.prop1_status
+From VT_ALUMNI_MARKET_SHEET m
+Left Join v_ksm_internal_marketsheet i on i.id_number = m.id_number
+Left Join ksm_giving ON ksm_giving.id_number = m.id_number
+Left Join fin on fin.id_number = m.id_number
+Inner Join entity on entity.id_number = m.id_number
+Where m.PROGRAM_GROUP is not null
+and (m.HOUSEHOLD_CITY IN ('Arvada'  ,
+'Aurora'  ,
+'Bennett' ,
+'Boulder' ,
+'Broomfield'  ,
+'Castle Pines'  ,
+'Castle Rock' ,
+'Centennial'  ,
+'Cherry Hills Village'  ,
+'Columbine Valley'  ,
+'Denver'  ,
+'Englewood' ,
+'Franktown' ,
+'Golden'  ,
+'Greenwood Village' ,
+'Highlands Ranch' ,
+'Lafayette' ,
+'Lakewood'  ,
+'Larkspur'  ,
+'Littleton' ,
+'Lone Tree' ,
+'Louisville'  ,
+'Monument'  ,
+'Parker'  ,
+'Superior'  ,
+'Thornton'  ,
+'Westminster' ,
+'Wheat Ridge' ))
+and m.HOUSEHOLD_STATE = 'CO'
+Order By m.HOUSEHOLD_CITY ASC
