@@ -1,0 +1,72 @@
+With KSM_Email AS (select email.id_number,
+       email.email_address,
+       email.preferred_ind,
+       email.forwards_to_email_address
+From email
+Inner Join rpt_pbh634.v_entity_ksm_degrees de on de.ID_NUMBER = email.id_number
+Where email.preferred_ind = 'Y'),
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.NO_EMAIL_IND,
+       spec.SPECIAL_HANDLING_CONCAT
+From rpt_pbh634.v_entity_special_handling spec),
+
+KSM_Faculty_Staff as (select aff.id_number,
+       TMS_AFFIL_CODE.short_desc as affilation_code,
+       tms_affiliation_level.short_desc as affilation_level
+FROM  affiliation aff
+LEFT JOIN TMS_AFFIL_CODE ON TMS_AFFIL_CODE.affil_code = aff.affil_code
+Left JOIN tms_affiliation_level ON tms_affiliation_level.affil_level_code = aff.affil_level_code
+--- Staff that are KSM Alumni
+inner join rpt_pbh634.v_entity_ksm_degrees d on d.ID_NUMBER = aff.id_number
+ WHERE  aff.affil_code = 'KM'
+   AND (aff.affil_level_code = 'ES'
+    OR  aff.affil_level_code = 'EF')),
+
+manual_dates As (
+Select
+  2023 AS pfy
+  ,2024 AS cfy
+  From DUAL
+),
+
+--- Checking on Reunion Class Year
+
+CY as (SELECT
+A.ID_NUMBER,
+--- folks Can have Multiple Reunion Years, so Listagg to Avoid duplicates
+Listagg (A.CLASS_YEAR, ';  ') Within Group (Order By A.CLASS_YEAR) As class_year
+FROM AFFILIATION A
+Inner Join RPT_PBH634.V_ENTITY_KSM_DEGREES KD on KD.id_number = A.id_number 
+CROSS JOIN manual_dates MD
+--- Reunion Affilation AND 2024 Eligible - Up to the 50th Milestone
+WHERE A.AFFIL_CODE = 'KM'
+--- Modification: We Don't want FT-MS and PHS (Just the group we normally focus on)
+and KD.PROGRAM IN ('EMP', 'EMP-FL', 'EMP-IL', 'EMP-CAN', 'EMP-GER', 'EMP-HK', 'EMP-ISR', 'EMP-JAN', 'EMP-CHI', 'FT', 'FT-1Y', 'FT-2Y', 'FT-CB', 'FT-EB', 'FT-JDMBA', 'FT-MMGT', 'FT-MMM', 'FT-MBAi', 'TMP', 'TMP-SAT',
+'TMP-SATXCEL', 'TMP-XCEL')
+AND A.AFFIL_LEVEL_CODE = 'RG'
+AND (TO_NUMBER(NVL(TRIM(A.CLASS_YEAR),'1')) IN (MD.CFY-1, MD.CFY-5, MD.CFY-10, MD.CFY-15,
+MD.CFY-20, MD.CFY-25, MD.CFY-30, MD.CFY-35, MD.CFY-40,MD.CFY-45,
+MD.CFY-50))
+Group by A.id_number)
+
+select deg.ID_NUMBER,
+       deg.FIRST_KSM_YEAR,
+       cy.class_year as Reunion24_Pref_Class_Year,
+       deg.PROGRAM,
+       deg.RECORD_STATUS_CODE,
+       case when cy.id_number is not null then '2024 Reunion Eligible Alumni'
+         else 'Not Eligible for 2024 Reunion' end as Reunion_ind,
+       case when KSM_Email.email_address is not null then 'yes' else '' end as preferred_email_on_file
+from rpt_pbh634.v_entity_ksm_degrees deg
+left join KSM_Spec on deg.ID_NUMBER = KSM_Spec.id_number
+left join KSM_Email on deg.ID_NUMBER = KSM_Email.id_number
+left join KSM_Faculty_Staff on KSM_Faculty_Staff.id_number = deg.ID_NUMBER
+left join CY on CY.id_number = deg.id_number
+--- Exclude No contacts/ No Email
+--- Exclude Deceased Record
+--- Exclude KSM Staff that ARE KSM alumni
+where (KSM_Email.email_address is not null
+and KSM_Spec.NO_EMAIL_IND is null)
+and deg.RECORD_STATUS_CODE IN ('A','L')
+and KSM_Faculty_Staff.id_number is null
