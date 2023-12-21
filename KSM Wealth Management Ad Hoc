@@ -1,0 +1,149 @@
+"-- General Employment
+
+with employ As (
+  Select id_number
+  , job_title
+  , employment.fld_of_work_code
+  , fow.short_desc As fld_of_work
+  , employer_name1,
+    -- If there's an employer ID filled in, use the entity name
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+  Where employment.primary_emp_ind = 'Y'),
+
+
+efinal as (select *
+from employ
+where
+--- Employer is in the Top 20 of Forbes List
+(employ.employer_name like '%VMT Wealth Management%'
+or employ.employer_name like '%MPW Group%'
+or employ.employer_name like '%Snyder/Balducci Group%'
+or employ.employer_name like '%Warr Group%'
+or employ.employer_name like '%Payne & Mencias Group%'
+or employ.employer_name like '%Ellison Kibler & Associate%'
+or employ.employer_name like '%Jacoby Nealon & McCain Wealth Management Group%'
+or employ.employer_name like '%Atlas Group%'
+or employ.employer_name like '%Oberlander Timmerwilke Group%'
+or employ.employer_name like '%The Burish Group%'
+or employ.employer_name like '%SiRiCa Wealth Management Group%'
+or employ.employer_name like '%Harbor Group%'
+or employ.employer_name like '%Pluta/Katz Group%'
+or employ.employer_name like '%Americas Group%'
+or employ.employer_name like '%712 Investment Group%'
+or employ.employer_name like '%Private Asset Management%'
+or employ.employer_name like '%The Stulberg Group%'
+or employ.employer_name like '%Tiras Wealth Management%'
+or employ.employer_name like '%Broughton Ward%'
+or employ.employer_name like '%Oaks Group%')
+--- OR the Employer has a wealth/manage like name
+or (lower (employ.employer_name) like '%wealth%manage%')
+--- Or Job Title is like Wealth Manager
+or (lower (employ.job_title) like '%wealth%manage%')
+--- Investment Management
+or employ.fld_of_work_code = 'L70'),
+
+--- Manual Adds Jackie Moss, David Koh, Martin Caverly
+
+addon as (select entity.id_number
+from entity
+where entity.id_number IN ('0000293390', '0000421629', '0000405026')),
+
+
+
+linked as (select distinct ec.id_number,
+max(ec.start_dt) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) As Max_Date,
+max (ec.econtact) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) as linkedin_address
+from econtact ec
+where  ec.econtact_status_code = 'A'
+and  ec.econtact_type_code = 'L'
+Group By ec.id_number),
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.NO_CONTACT,
+       spec.NO_EMAIL_IND,
+       spec.SPECIAL_HANDLING_CONCAT
+From rpt_pbh634.v_entity_special_handling spec),
+
+
+ksm_giving as
+(Select Give.ID_NUMBER,
+       give.NGC_LIFETIME,
+       give.NU_MAX_HH_LIFETIME_GIVING
+From RPT_PBH634.v_Ksm_Giving_Summary Give),
+
+assign as (select assign.id_number,
+       assign.prospect_manager,
+       assign.lgos,
+       assign.managers,
+       assign.curr_ksm_manager
+from rpt_pbh634.v_assignment_summary assign),
+
+ksm_prospect AS (
+Select TP.ID_NUMBER,
+       TP.PREF_MAIL_NAME,
+       TP.LAST_NAME,
+       TP.FIRST_NAME,
+       TP.PROSPECT_MANAGER,
+       TP.EVALUATION_RATING,
+       TP.OFFICER_RATING
+From nu_prs_trp_prospect TP),
+
+KSM_Email AS (select email.id_number,
+       email.email_address,
+       email.preferred_ind,
+       email.forwards_to_email_address
+From email
+Where email.preferred_ind = 'Y')
+
+select house.ID_NUMBER,
+       house.REPORT_NAME,
+       entity.gender_code,
+       house.RECORD_STATUS_CODE,
+       house.FIRST_KSM_YEAR,
+       house.PROGRAM,
+       house.PROGRAM_GROUP,
+       --house.HOUSEHOLD_CITY,
+       --house.HOUSEHOLD_STATE,
+       employ.job_title,
+       employ.employer_name,
+       employ.fld_of_work,
+       case when addon.id_number is not null then 'Extra Addition' End as Extra_Addition,
+       ---assign.prospect_manager,
+       ---assign.lgos,
+       ---ksm_prospect.EVALUATION_RATING,
+       ---ksm_prospect.OFFICER_RATING,
+       ---ksm_giving.NGC_LIFETIME as KSM_NGC_Lifetime,
+       ---ksm_giving.NU_MAX_HH_LIFETIME_GIVING,
+       ---linked.linkedin_address,
+       k.NO_CONTACT,
+       k.NO_EMAIL_IND,
+       KE.Email_address
+from rpt_pbh634.v_entity_ksm_households house
+inner join entity on entity.id_number = house.ID_NUMBER
+left join efinal on efinal.id_number = house.id_number
+left join employ on employ.id_number = house.ID_NUMBER
+left join linked on linked.id_number = house.id_number
+left join KSM_Spec k on k.id_number = house.id_number
+Left Join ksm_prospect ON ksm_prospect.ID_NUMBER = house.id_number
+Left Join ksm_giving ON ksm_giving.id_number = house.id_number
+Left Join assign on assign.id_number = house.ID_number
+Left Join KSM_Email KE on KE.id_number = house.id_number
+Left Join addon on addon.id_number = house.id_number
+where house.PROGRAM is not null
+and k.NO_CONTACT is null
+--- One ID in the dataset should not be part of it
+and house.id_number != '0000409548'
+--- Those in the employmenht from my first query AND manual Additions
+and (efinal.id_number is not null
+or addon.id_number is not null)
+order by house.REPORT_NAME ASC"
