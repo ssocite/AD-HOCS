@@ -1,0 +1,142 @@
+With manual_dates As (
+Select
+  2023 AS pfy
+  ,2024 AS cfy
+  From DUAL
+),
+
+RE AS (
+SELECT
+A.*
+FROM AFFILIATION A
+CROSS JOIN manual_dates MD
+WHERE (TO_NUMBER(NVL(TRIM(A.CLASS_YEAR),'1')) IN (MD.CFY-1, MD.CFY-5, MD.CFY-10, MD.CFY-15, MD.CFY-20, MD.CFY-25, MD.CFY-30, MD.CFY-35, MD.CFY-40,
+  MD.CFY-45, MD.CFY-50, MD.CFY-51, MD.CFY-52, MD.CFY-53, MD.CFY-54, MD.CFY-55, MD.CFY-56, MD.CFY-57, MD.CFY-58, MD.CFY-59, MD.CFY-60)
+AND A.AFFIL_CODE = 'KM'
+AND A.AFFIL_LEVEL_CODE = 'RG')),
+
+R AS (SELECT RE.ID_NUMBER,
+Listagg (RE.CLASS_YEAR, ';  ') Within Group (Order By RE.CLASS_YEAR) As CLASS_YEAR
+FROM RE
+GROUP BY RE.ID_NUMBER),
+
+employ As (
+  Select id_number
+  , job_title
+  , employment.fld_of_work_code
+  , fow.short_desc
+  , employer_name1,
+    -- If there's an employer ID filled in, use the entity name
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+  Where employment.primary_emp_ind = 'Y'
+),
+
+
+--- Indicators in the following industries of employment
+
+--- Employed in Banking, Financial Services, Venture Capital & Private Equity
+--- L140 Venture Capital & Private Equity
+
+
+
+V As (
+  Select distinct id_number
+from employ
+where employ.fld_of_work_code = 'L140'
+),
+
+--- Interest Indicators
+
+--- Venture Captial and Private Equity is actually LVC for interest
+
+--- AND Entreprenuership!!! - Interest Only!
+
+venture AS (select Distinct interest.id_number,
+Listagg (i.short_desc, ';  ') Within Group (Order By i.short_desc) As short_desc
+from interest
+left join tms_interest i on i.interest_code = interest.interest_code
+where interest.interest_code IN ('LVC','E8')
+group by interest.id_number
+),
+
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.NO_CONTACT,
+       spec.NO_EMAIL_IND,
+       spec.SPECIAL_HANDLING_CONCAT,
+       spec.EBFA,
+       spec.GAB,
+       spec.TRUSTEE
+From rpt_pbh634.v_entity_special_handling spec),
+
+assignment as (select assign.id_number,
+       assign.prospect_manager,
+       assign.lgos,
+       assign.managers,
+       assign.curr_ksm_manager
+from rpt_pbh634.v_assignment_summary assign),
+
+linked as (select distinct ec.id_number,
+max(ec.start_dt) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) As Max_Date,
+max (ec.econtact) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) as linkedin_address
+from econtact ec
+where  ec.econtact_status_code = 'A'
+and  ec.econtact_type_code = 'L'
+Group By ec.id_number)
+
+
+select distinct d.ID_NUMBER,
+       entity.first_name,
+       entity.last_name,
+       entity.institutional_suffix,
+       d.PROGRAM,
+       d.FIRST_KSM_YEAR,
+       r.class_year as Reunion_class_year_pref,
+       --- Private Equity and Venture Capital Employment Indicator
+       case when v.id_number is not null then 'Y' End as Employed_in_VCPE,
+       case when venture.id_number is not null then 'Y' End as Interest_Entreprenuer_VCPE,
+       venture.short_desc as interest_concat,
+       employ.job_title,
+       employ.employer_name,
+       h.HOUSEHOLD_CITY,
+       h.HOUSEHOLD_STATE,
+       h.HOUSEHOLD_GEO_CODES,
+       h.HOUSEHOLD_COUNTRY,
+       assignment.lgos,
+       assignment.prospect_manager,
+       linked.linkedin_address
+from rpt_pbh634.v_entity_ksm_degrees d
+inner join rpt_pbh634.v_entity_ksm_households h on h.id_number = d.id_number
+--- Just want Reunion folks
+inner join r on r.id_number = d.id_number
+left join entity on entity.id_number = d.id_number
+left join employ on employ.id_number = d.ID_NUMBER
+--- employment Venture Capital/Private Equity, Bank
+left join v on v.id_number = d.ID_NUMBER
+--- interest: Venture Capital/Private Equity, Bank
+left join venture on venture.id_number = d.id_number
+--- Special Handling Codes
+left join KSM_Spec on KSM_Spec.id_number = d.ID_NUMBER
+--- Assignment
+left join assignment on assignment.id_number = d.id_number
+--- Linkedin
+left join linked on linked.id_number = d.id_number
+--- Take out deceased and no contact
+where  d.RECORD_STATUS_CODE IN ('A','L')
+--- Remove No Contact and No Email
+and (KSM_Spec.NO_CONTACT is null
+and KSM_Spec.NO_EMAIL_IND is null)
+--- Include anyone that suffices employment or interest
+and (v.id_number is not null or
+venture.id_number is not null)
+Order by entity.last_name asc
