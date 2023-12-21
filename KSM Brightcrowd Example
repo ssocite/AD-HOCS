@@ -1,0 +1,107 @@
+--- Kellogg Alumni - Just Active or Lost (Removing Deceased, No Contacts)
+--- Full Timers For Class Years (2023, 4's, 9's)
+
+with d as (select *
+from rpt_pbh634.v_entity_ksm_degrees
+where rpt_pbh634.v_entity_ksm_degrees.RECORD_STATUS_CODE IN ('A','L')
+AND rpt_pbh634.v_entity_ksm_degrees.PROGRAM_GROUP = 'FT'),
+
+manual_dates As (
+Select
+  2023 AS pfy
+  ,2024 AS cfy
+  From DUAL
+),
+
+--- Checking on Reunion Class Year
+
+R as (SELECT
+A.ID_NUMBER,
+d.PROGRAM,
+d.PROGRAM_GROUP,
+a.class_year
+FROM AFFILIATION A
+--- Adding degrees to build on next subqeuries
+inner join d  on d.id_number = a.id_number
+CROSS JOIN manual_dates MD
+--- Reunion Affilation AND 2024 Eligible - Up to the 50th Milestone
+WHERE A.AFFIL_CODE = 'KM'
+AND A.AFFIL_LEVEL_CODE = 'RG'
+AND (TO_NUMBER(NVL(TRIM(A.CLASS_YEAR),'1')) IN (MD.CFY-1, MD.CFY-5, MD.CFY-10, MD.CFY-15,
+MD.CFY-20, MD.CFY-25, MD.CFY-30, MD.CFY-35, MD.CFY-40,MD.CFY-45,
+MD.CFY-50))),
+
+em as (select *
+from email),
+
+p AS (select em.id_number,
+       em.email_address
+From em
+Where em.preferred_ind = 'Y'),
+
+
+--- Alt email address
+
+KSM_Alt AS (select distinct email.id_number
+       , Listagg (email.email_address, ';  ') Within Group (Order By email.email_address) As Alt_Email
+From email
+Where email.preferred_ind = 'N'
+And email.email_status_code = 'A'
+Group By email.id_number),
+
+--- Final Email Subquery
+
+fe as (select p.id_number,
+p.email_address,
+KSM_Alt.alt_email
+from d
+left join p on p.id_number = d.id_number
+left join KSM_Alt on KSM_Alt.id_number = d.id_number),
+
+
+s as (Select spec.ID_NUMBER,
+       spec.GAB,
+       spec.TRUSTEE,
+       spec.EBFA,
+       spec.NO_CONTACT,
+       spec.NO_EMAIL_IND
+From rpt_pbh634.v_entity_special_handling spec),
+
+
+n as (select e.id_number,
+       e.pref_mail_name,
+       e.pref_first_name,
+       e.last_name,
+       e.nu_degrees_string,
+       r.program,
+       r.program_group,
+       r.class_year
+from rpt_pbh634.v_entity_nametags e
+inner join R on R.id_number = e.id_number)
+
+select entity.id_number,
+       n.pref_mail_name,
+       n.pref_first_name,
+       n.last_name,
+       n.program,
+       n.program_group,
+       n.class_year,
+       fe.email_address,
+       fe.alt_email
+from entity
+inner join n on n.id_number = entity.id_number
+left join fe on fe.id_number = entity.id_number
+left join s on s.id_number = entity.id_number
+--- Remove No Contacts, No Email, GAB, Trustee, EBFA
+where  (s.NO_CONTACT is null
+and s.NO_EMAIL_IND is null
+and s.GAB is null
+and s.TRUSTEE is null
+and s.ebfa is null)
+--- Grab anyone with a preferred email address OR an active email address (doubt there are those with an active email
+---, but not with a preferred email
+and (fe.email_address is not null
+or fe.alt_email is not null)
+--- The Class Year
+and n.class_year = '2023'
+order by n.last_name ASC
