@@ -1,0 +1,142 @@
+--- Households in Boston - KSM Alumni
+with h as (select *
+from RPT_PBH634.V_ENTITY_KSM_HOUSEHOLDS
+where (RPT_PBH634.V_ENTITY_KSM_HOUSEHOLDS.HOUSEHOLD_GEO_PRIMARY_DESC like '%Boston%'
+OR RPT_PBH634.V_ENTITY_KSM_HOUSEHOLDS.HOUSEHOLD_STATE = 'RI')
+and RPT_PBH634.V_ENTITY_KSM_HOUSEHOLDS.program is not null),
+
+--- General Employment
+e as (
+  Select id_number
+  , job_title
+  , employment.fld_of_work_code
+  , fow.short_desc As fld_of_work
+  , employer_name1,
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+  Where employment.primary_emp_ind = 'Y'
+),
+
+--- Industry in health
+
+industry as (select *
+from v_industry_groups
+where v_industry_groups.HLTH = 'X'),
+
+--- Industry in Private Equity and Venture Capital
+
+pevc as (select *
+from v_industry_groups
+where v_industry_groups.fld_of_work_code = 'L140'),
+
+--- interest in health
+
+intr as (select interest.id_number,
+Listagg (TMS_INTEREST.short_desc, ';  ') Within Group (Order By TMS_INTEREST.short_desc)
+As short_desc
+from interest
+left join tms_interest on tms_interest.interest_code = interest.interest_code
+where tms_interest.short_desc IN
+('Alternative Medicine',
+'Biotechnology',
+'Health, Wellness and Fitness',
+'Hospital & Health Care',
+'Medical Devices',
+'Medical Practice',
+'Mental Health Care',
+'Pharmaceuticals',
+'Veterinary')
+group by interest.id_number),
+
+
+--- interest in Private Equity and Venture Capital
+
+pintr as (select interest.id_number,
+Listagg (TMS_INTEREST.short_desc, ';  ') Within Group (Order By TMS_INTEREST.short_desc)
+As short_desc
+from interest
+left join tms_interest on tms_interest.interest_code = interest.interest_code
+where tms_interest.short_desc = 'Venture Capital & Private Equity'
+group by interest.id_number),
+
+--- Final Employment
+--- Employed in Healthcare OR Interested AND employed in PEVC or Interested in it!!1
+
+np as (select e.id_number
+  , e.job_title
+  , industry.short_desc as employment_industry_health
+  , pevc.short_desc as employment_industry_pevc
+  , intr.short_desc as interest_health
+  , pintr.short_desc as interest_pevc
+  ,  e.employer_name
+from e
+left join industry on industry.fld_of_work_code = e.fld_of_work_code
+left join pevc on pevc.fld_of_work_code = e.fld_of_work_code
+left join pintr on pintr.id_number = e.id_number
+left join intr on intr.id_number = e.id_number
+Where (industry.fld_of_work_code is not null
+or pevc.fld_of_work_code is not null
+or pintr.id_number is not null
+or intr.id_number is not null)),
+
+--- Special Handling Codes: No Contact/No Mail
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.NO_MAIL_IND,
+       spec.NO_CONTACT
+From rpt_pbh634.v_entity_special_handling spec),
+
+linked as (select distinct ec.id_number,
+max(ec.start_dt) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) As Max_Date,
+max (ec.econtact) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) as linkedin_address
+from econtact ec
+where  ec.econtact_status_code = 'A'
+and  ec.econtact_type_code = 'L'
+Group By ec.id_number),
+
+assign as (select assign.id_number,
+       assign.prospect_manager,
+       assign.lgos,
+       assign.managers,
+       assign.curr_ksm_manager
+from rpt_pbh634.v_assignment_summary assign)
+
+select distinct
+       H.id_number,
+       h.PREF_MAIL_NAME,
+       entity.first_name,
+       entity.last_name,
+       h.FIRST_KSM_YEAR,
+       h.PROGRAM,
+       assign.prospect_manager,
+       assign.lgos,
+       np.employer_name as primary_employer,
+       np.job_title as primary_job_title,
+       np.employment_industry_health,
+       np.employment_industry_pevc,
+       np.interest_health,
+       np.interest_pevc,
+       linked.linkedin_address,
+       h.HOUSEHOLD_CITY,
+       h.HOUSEHOLD_STATE,
+       h.HOUSEHOLD_ZIP,
+       h.HOUSEHOLD_GEO_CODES,
+       h.HOUSEHOLD_GEO_PRIMARY,
+       h.HOUSEHOLD_GEO_PRIMARY_DESC
+from h
+inner join np on np.id_number = h.id_number
+inner join entity on entity.id_number = h.id_number
+left join KSM_Spec on KSM_Spec.id_number = h.id_number
+left join linked on linked.id_number = h.id_number
+left join assign on assign.id_number = h.id_number
+where (KSM_Spec.NO_MAIL_IND is null
+and KSM_Spec.NO_CONTACT is null)
+order by entity.last_name
