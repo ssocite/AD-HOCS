@@ -1,0 +1,52 @@
+with manual_dates As (
+Select 2023 AS cfy
+  From DUAL
+),
+
+--- Checking on Reunion Class Year
+
+CY as (SELECT
+A.ID_NUMBER,
+--- folks Can have Multiple Reunion Years, so Listagg to Avoid duplicates
+Listagg (A.CLASS_YEAR, ';  ') Within Group (Order By A.CLASS_YEAR) As class_year
+FROM AFFILIATION A
+CROSS JOIN manual_dates MD
+--- Reunion Affilation AND 2024 Eligible - Up to the 50th Milestone
+WHERE A.AFFIL_CODE = 'KM'
+AND A.AFFIL_LEVEL_CODE = 'RG'
+AND (TO_NUMBER(NVL(TRIM(A.CLASS_YEAR),'1')) IN (MD.CFY-1, MD.CFY-5, MD.CFY-10, MD.CFY-15,
+MD.CFY-20, MD.CFY-25, MD.CFY-30, MD.CFY-35, MD.CFY-40,MD.CFY-45,
+MD.CFY-50))
+Group by A.id_number),
+
+give as (select s.ID_NUMBER,
+                s.STEWARDSHIP_PFY1,
+                s.STEWARDSHIP_PFY5
+from rpt_pbh634.v_ksm_giving_summary s)
+
+select f.id_number,
+       f.report_name,
+       CY.CLASS_YEAR,
+       f.person_or_org,
+       f.institutional_suffix,
+       f.degrees_concat,
+       f.first_ksm_year,
+       f.program_group,
+       give.STEWARDSHIP_PFY1,
+       f.event_id,
+       f.event_name,
+       f.ksm_event,
+       f.event_type,
+       f.participation_id,
+       f.participation_status_code,
+       f.participation_status,
+       f.start_dt,
+       f.stop_dt,
+       f.start_dt_calc,
+       f.stop_dt_calc,
+       f.start_fy_calc,
+       f.stop_fy_calc
+from rpt_pbh634.v_nu_event_participants_fast f
+left join CY on CY.id_number = f.id_number
+left join give on give.id_number = f.id_number
+where f.Event_Id = '28145'"
