@@ -1,0 +1,20 @@
+with KLC as (
+SELECT * FROM table(RPT_ABM1914.KSM_PKG_KLC.tbl_klc_members(2019)))
+
+Select R.ID_NUMBER,
+       R.GENDER_CODE,
+       R.pref_mail_name,
+       R.FIRST_NAME,
+       R.last_name,
+       KLC.segment,
+       KLC.KLC_Lev_Pfy,
+       KLC.Fiscal_YR as KLC_FY,
+       R.CLASS_YEAR,
+       R.DEGREE_PROGRAM,
+       R.PROGRAM_GROUP,
+       R.ATTENDED_REUNION_2019,
+       R.lgos,
+       R.prospect_manager
+from V_KSM_24_REUNION R
+Inner join KLC on KLC.id_number = R.id_number
+order by r.last_name
