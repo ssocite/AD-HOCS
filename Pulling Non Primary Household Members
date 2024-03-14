@@ -1,0 +1,242 @@
+with h as (select *
+from rpt_pbh634.v_entity_ksm_households),
+
+--- KFN Advisory Board Members
+
+KFN AS (select k.id_number,
+       k.role,
+       k.committee_title,
+       k.short_desc,
+       k.start_dt,
+       k.stop_dt,
+       k.status,
+       k.xcomment
+From table (rpt_pbh634.ksm_pkg_tmp.tbl_committee_KFN) k
+where k.xcomment Like '%Advisory Board%'),
+
+
+gab as (select g.id_number,
+       g.role,
+       g.committee_title,
+       g.short_desc,
+       g.start_dt,
+       g.stop_dt,
+       g.status,
+       g.xcomment
+From table (rpt_pbh634.ksm_pkg_tmp.tbl_committee_gab) g
+inner join h on h.id_number = g.id_number
+where h.HOUSEHOLD_GEO_PRIMARY_DESC like '%Chicago%'),
+
+
+amp as (select a.id_number,
+       a.role,
+       a.committee_title,
+       a.short_desc,
+       a.start_dt,
+       a.stop_dt,
+       a.status,
+       a.xcomment
+From table (rpt_pbh634.ksm_pkg_tmp.tbl_committee_amp) a
+inner join h on h.id_number = a.id_number
+where h.HOUSEHOLD_GEO_PRIMARY_DESC like '%Chicago%'),
+
+
+
+p as (select p.id_number,
+       p.role,
+       p.committee_title,
+       p.short_desc,
+       p.start_dt,
+       p.stop_dt,
+       p.status,
+       p.xcomment
+From table (rpt_pbh634.ksm_pkg_tmp.tbl_committee_privateEquity) p
+inner join h on h.id_number = p.id_number
+where h.HOUSEHOLD_GEO_PRIMARY_DESC like '%Chicago%'),
+
+
+
+klc as (select k.ID_NUMBER
+from rpt_ABM1914.v_Klc_Members k
+inner join h on h.id_number = k.id_number
+where h.HOUSEHOLD_GEO_PRIMARY_DESC like '%Chicago%'),
+
+--- employment in education
+
+employ As (
+Select id_number
+  , job_title
+  , employment.fld_of_work_code
+  , fow.short_desc As fld_of_work
+  , employer_name1,
+    -- If there's an employer ID filled in, use the entity name
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+        Where employment.primary_emp_ind = 'Y'),
+
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.SPECIAL_HANDLING_CONCAT,
+       spec.GAB,
+       spec.TRUSTEE,
+       spec.EBFA,
+       spec.NO_CONTACT,
+       spec.NO_PHONE_IND,
+       spec.NO_EMAIL_IND,
+       spec.NO_MAIL_IND
+From rpt_pbh634.v_entity_special_handling spec),
+
+assignment as (select assign.id_number,
+       assign.prospect_manager,
+       assign.lgos,
+       assign.managers,
+       assign.curr_ksm_manager
+from rpt_pbh634.v_assignment_summary assign),
+
+linked as (select distinct ec.id_number,
+max(ec.start_dt) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) As Max_Date,
+max (ec.econtact) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) as linkedin_address
+from econtact ec
+where  ec.econtact_status_code = 'A'
+and  ec.econtact_type_code = 'L'
+Group By ec.id_number)
+
+, hh_primary As (
+Select
+h.household_id
+, count(Distinct e.id_number) As ids_in_hh
+FROM ENTITY e
+inner join h on h.id_number = e.id_number
+left join KFN on KFN.id_number = h.id_number
+left join gab on e.id_number = gab.id_number
+left join amp on e.id_number = amp.id_number
+left join p on e.id_number = p.id_number
+left join KLC on e.id_number = KLC.id_number
+where KFN.id_number is not null
+--- OR GAB, AMP, PEAC, KLC IN CHICAGO ONLY
+or (gab.id_number is not null
+or amp.id_number is not null
+or p.id_number is not null
+or KLC.id_number is not null)
+Group By h.household_id),
+
+Finals as  (SELECT e.id_number,
+e.first_name,
+e.last_name,
+h.SPOUSE_ID_NUMBER,
+h.SPOUSE_REPORT_NAME,
+h.SPOUSE_PREF_MAIL_NAME,
+h.SPOUSE_SUFFIX,
+h.HOUSEHOLD_ID,
+h.HOUSEHOLD_PRIMARY,
+h.HOUSEHOLD_NAME,
+h.HOUSEHOLD_RPT_NAME,
+kfn.short_desc as KFN_Desc,
+kfn.start_dt as KFN_Start_Dt,
+kfn.status as KFN_Status,
+kfn.role as KFN_Role,
+kfn.xcomment as KFN_Comment,
+case when KFN.id_number is not null then 'KFN' end as KFN_IND,
+case when KLC.id_number is not null then 'KLC' end as KLC_IND,
+case when GAB.id_number is not null then 'GAB' end as GAB_IND,
+case when AMP.id_number is not null then 'AMP' end as AMP_IND,
+case when p.id_number is not null then 'PEAC' end as PEAC_IND,
+e.record_type_code,
+e.record_status_code,
+e.institutional_suffix,
+e.gender_code,
+h.FIRST_KSM_YEAR,
+h.PROGRAM,
+h.PROGRAM_GROUP,
+h.HOUSEHOLD_CITY,
+h.HOUSEHOLD_STATE,
+h.HOUSEHOLD_GEO_PRIMARY_DESC,
+employ.job_title,
+employ.employer_name,
+employ.fld_of_work as employment_industry,
+KSP.NO_CONTACT,
+KSP.NO_EMAIL_IND,
+a.prospect_manager,
+a.lgos,
+l.linkedin_address,
+-- Calculated household primary
+case
+   when hhp.ids_in_hh = 1 Then 'Y'
+     Else h.household_primary
+       End
+   As household_primary_calc
+FROM ENTITY e
+inner join h on h.id_number = e.id_number
+-- Paul addition, test
+Inner Join hh_primary hhp On hhp.household_id = h.household_id
+left join KFN on KFN.id_number = e.id_number
+left join employ on employ.id_number = e.id_number
+left join KSM_Spec KSP on KSP.id_number = e.id_number
+left join assignment a on a.id_number = e.id_number
+left join linked l on l.id_number = e.id_number
+left join gab on e.id_number = gab.id_number
+left join amp on e.id_number = amp.id_number
+left join p on e.id_number = p.id_number
+left join KLC on e.id_number = KLC.id_number
+--- All KFN MEMBERS
+where KFN.id_number is not null
+--- OR GAB, AMP, PEAC, KLC IN CHICAGO ONLY
+or (gab.id_number is not null
+or amp.id_number is not null
+or p.id_number is not null
+or KLC.id_number is not null))
+
+
+SELECT distinct finals.id_number,
+finals.first_name,
+finals.last_name,
+finals.SPOUSE_ID_NUMBER,
+finals.SPOUSE_REPORT_NAME,
+finals.SPOUSE_PREF_MAIL_NAME,
+finals.SPOUSE_SUFFIX,
+finals.household_primary,
+finals.household_primary_calc as household_primary_calc,
+finals.HOUSEHOLD_ID,
+finals.HOUSEHOLD_NAME,
+finals.HOUSEHOLD_RPT_NAME,
+finals.KFN_Desc,
+finals.KFN_Start_Dt,
+finals.KFN_Status,
+finals.KFN_Role,
+finals.KFN_Comment,
+finals.KFN_IND,
+finals.KLC_IND,
+finals.GAB_IND,
+finals.AMP_IND,
+finals.PEAC_IND,
+finals.record_type_code,
+finals.record_status_code,
+finals.institutional_suffix,
+finals.gender_code,
+finals.FIRST_KSM_YEAR,
+finals.PROGRAM,
+finals.PROGRAM_GROUP,
+finals.HOUSEHOLD_CITY,
+finals.HOUSEHOLD_STATE,
+finals.HOUSEHOLD_GEO_PRIMARY_DESC,
+finals.job_title,
+finals.employer_name,
+finals.employment_industry,
+finals.prospect_manager,
+finals.lgos,
+finals.linkedin_address,
+finals.NO_CONTACT,
+finals.NO_EMAIL_IND
+from finals
+where  (finals.household_primary = 'Y'
+or finals.household_primary_calc = 'Y')
+order by finals.last_name asc
