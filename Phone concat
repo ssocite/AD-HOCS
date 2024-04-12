@@ -1,0 +1,44 @@
+with Phone as (Select t.id_number,
+t.preferred_ind,
+tms_country.short_desc as country,
+t.area_code,
+t.telephone_number,
+t.telephone_type_code,
+t.country_code
+From telephone t
+LEFT JOIN tms_country ON tms_country.country_code = t.country_code
+where t.preferred_ind = 'Y'),
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.GAB,
+       spec.TRUSTEE,
+       spec.NO_CONTACT,
+       spec.NO_EMAIL_IND,
+       spec.NO_PHONE_IND,
+       spec.NO_PHONE_SOL_IND
+From rpt_pbh634.v_entity_special_handling spec)
+
+
+select entity.id_number,
+h.REPORT_NAME,
+h.INSTITUTIONAL_SUFFIX,
+h.PROGRAM,
+h.FIRST_KSM_YEAR,
+t.preferred_ind as preferred_phone_ind,
+t.telephone_type_code,
+t.area_code,
+t.telephone_number,
+t.country_code,
+
+      CASE WHEN t.country is null then
+      t.area_code ||'-'|| SUBSTR(t.telephone_number,1,3) ||'-'|| SUBSTR(T.TELEPHONE_NUMBER,4,4)
+      else 'International' End  as telephone_concat,
+
+
+KSM_Spec.NO_PHONE_IND,
+KSM_Spec.NO_PHONE_SOL_IND,
+KSM_Spec.NO_CONTACT
+from entity
+inner join RPT_PBH634.V_ENTITY_KSM_HOUSEHOLDS h on h.id_number = entity.id_number
+left join phone t on t.id_number = entity.id_number
+left join KSM_Spec on KSM_Spec.id_number = entity.id_number
