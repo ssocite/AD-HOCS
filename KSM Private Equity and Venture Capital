@@ -1,0 +1,211 @@
+With UOR As (
+Select
+    prospect_id
+    -- If multiple active UORs, keep only the most recent (by evaluation date)
+    , max(evaluation_date) keep(dense_rank First Order By evaluation_date Desc NULLS Last, evaluation.rating_code Asc)
+      As uor_date
+    , max(evaluation.rating_code) keep(dense_rank First Order By evaluation_date Desc NULLS Last, evaluation.rating_code Asc)
+      As rating_code
+    , max(tms_rating.short_desc) keep(dense_rank First Order By evaluation_date Desc NULLS Last, evaluation.rating_code Asc)
+      As uor
+    , max(entity.id_number) keep(dense_rank First Order By evaluation_date Desc NULLS Last, evaluation.rating_code Asc)
+      As uor_evaluator_id
+    , max(entity.report_name) keep(dense_rank First Order By evaluation_date Desc NULLS Last, evaluation.rating_code Asc)
+      As uor_evaluator
+  From evaluation
+  Left Join tms_rating On tms_rating.rating_code = evaluation.rating_code
+  Left Join entity On entity.id_number = evaluation.evaluator_id_number
+  Where evaluation.evaluation_type = 'UR'
+    And evaluation.active_ind = 'Y' -- University overall rating
+    And evaluation.rating_code In ('4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17')
+  Group By
+    evaluation.prospect_id
+)
+,
+
+KPEAC As (
+Select c.id_number
+     , c.committee_code
+     , ct.short_desc As Committee
+     , c.start_dt
+     , c.COMMITTEE_STATUS_CODE
+     , c.committee_title
+     , c.committee_role_code
+     , cr.short_desc As Committee_Role
+     , c.xcomment
+From committee c
+Inner Join entity e
+      On e.id_number = c.id_number
+Inner Join tms_committee_table ct
+      On c.committee_code = ct.committee_code
+Inner Join tms_committee_role cr
+      On c.committee_role_code = cr.COMMITTEE_ROLE_CODE
+Where c.committee_code = 'KPETC'
+And c.COMMITTEE_STATUS_CODE = 'C'
+)
+,
+
+Pref_Addr As
+(Select addy.id_number
+--      , addy.addr_type_code
+      , tmsaddy.short_desc As Pref_Addr_Type
+      , addy.addr_status_code As Pref_Addr_Status
+      , addy.addr_pref_ind As Pref_Addr_Pref_Ind
+      , addy.city As Pref_Addr_City
+      , st.short_desc As Pref_Addr_State
+      , tmsc.short_desc As Pref_Addr_Country
+From address addy
+Inner Join tms_address_type tmsaddy
+      On addy.addr_type_code = tmsaddy.addr_type_code
+Left Join tms_country tmsc
+      On addy.country_code = tmsc.country_code
+Left Join tms_states st
+      On addy.state_code = st.state_code
+Where addy.addr_pref_ind = 'Y'
+And addy.addr_status_code = 'A'
+),
+
+employ as (
+Select id_number
+       , job_title
+       , employment.fld_of_work_code
+       , fow.short_desc As fld_of_work
+       , employment.fld_of_spec_code1
+       , fos.short_desc As fld_of_spec
+       , employer_name1
+       , -- If there's an employer ID filled in, use the entity name
+   Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+  Left Join tms_fld_of_spec fos
+       On fos.fld_of_spec_code = employment.fld_of_spec_code1
+  Where employment.primary_emp_ind = 'Y'
+  And (employment.fld_of_work_code In ('PLBO', '36', 'L140')
+  Or employment.fld_of_spec_code1 In ('357', 'S25', 'S28', 'K07'))
+)
+,
+
+PEVCInt As (
+Select int.id_number
+     , listagg(int.interest_code, ', ') Within Group (Order By int.interest_code ASC) As Interest_Code
+     , listagg(tint.short_desc, ', ') Within Group (Order By int.interest_code ASC) As PEVC_Interest
+     , listagg(int.comment1, ', ') Within Group (Order By int.interest_code ASC) As Interest_Comment
+From interest int
+Inner Join tms_interest tint
+      On int.interest_code = tint.interest_code
+Where int.interest_code = 'LVC'
+Group By int.id_number
+)
+,
+
+id_merge As (
+Select id_number
+From PEVCInt
+Union
+Select id_number
+From employ
+),
+
+AE_Mod As (
+Select id_number
+     , segment_code
+     , xcomment
+From segment
+Where segment_code = 'KEMS'
+)
+,
+
+gen_employ as (
+Select id_number
+       , job_title As General_Job_Title
+       , employer_name1 As General_Employer
+       , -- If there's an employer ID filled in, use the entity name
+   Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As Gen_Employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+  Left Join tms_fld_of_spec fos
+       On fos.fld_of_spec_code = employment.fld_of_spec_code1
+  Where employment.primary_emp_ind = 'Y'
+)
+
+
+Select idm.id_number
+     , e.pref_mail_name
+     , e.record_status_code
+     , deg.degrees_concat
+     , deg.first_ksm_year
+     , deg.PROGRAM
+     , giv.NGC_LIFETIME_FULL_REC
+     , pe.prospect_id
+     , uor.uor_date
+     , uor.uor
+     , uor.uor_evaluator
+     , assn.prospect_manager
+     , assn.LGOs
+     , ge.gen_employer_name
+     , ge.general_job_title
+     , emp.fld_of_work_code As PEVC_Fld_of_Work_code
+     , emp.fld_of_work As PEVC_Fld_of_Work
+     , emp.fld_of_spec_code1 As PEVC_Fld_of_Spec_Code
+     , emp.fld_of_spec As PEVC_Fld_of_Spec
+     , pevc.PEVC_Interest
+     , pa.Pref_Addr_Type
+     , pa.Pref_Addr_Status
+     , pa.Pref_Addr_Pref_Ind
+     , pa.Pref_Addr_City
+     , pa.Pref_Addr_State
+     , pa.Pref_Addr_Country
+--     , ae.segment_code As KSM_Alum_Eng
+     , ae.xcomment As KSM_Alum_Eng_model_score
+     , KPEAC.committee_code
+     , KPEAC.Committee
+     , KPEAC.start_dt As KPEAC_Start
+     , KPEAC.COMMITTEE_STATUS_CODE
+     , KPEAC.committee_title
+     , KPEAC.committee_role_code
+     , KPEAC.Committee_Role
+     , KPEAC.xcomment
+From id_merge idm
+Inner Join entity e
+     On e.id_number = idm.id_number
+Inner Join rpt_pbh634.v_entity_ksm_degrees deg
+     On deg.id_number = idm.id_number
+Left Join prospect_entity pe
+     On pe.id_number = idm.id_number
+Inner Join UOR
+     On uor.prospect_id = pe.prospect_id
+Left Join rpt_pbh634.V_ksm_giving_summary giv
+     On giv.id_number = idm.id_number
+Left Join gen_employ ge
+     On ge.id_number = idm.id_number
+Left Join rpt_pbh634.v_assignment_summary assn
+     On assn.id_number = idm.id_number
+Left Join AE_Mod ae
+     On ae.id_number = idm.id_number
+Left Join Pref_Addr pa
+     On pa.id_number = idm.id_number
+Left Join employ emp
+     On emp.id_number = idm.id_number
+Left Join PEVCInt pevc
+     On pevc.id_number = idm.id_number
+Left Join KPEAC
+     On KPEAC.id_number = idm.id_number
+Where e.record_status_code = 'A'
+And (deg.program Not Like '%NONGRD%'
+And deg.program != 'UNK')
