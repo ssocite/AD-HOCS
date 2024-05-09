@@ -1,0 +1,64 @@
+With clean as (Select
+  c.id_number
+  , c.contact_id_number
+  , c.xcomment
+  , c.date_modified
+  , p.short_desc
+  , c.name
+  , trim(
+      regexp_substr(
+        c.xcomment
+        -- [^\s] : don't start with space
+        -- [A-z0-9_\.\-\+]+ : valid email chars: 1 or more alphanumeric, various special characters
+        -- @ : must have @ symbol
+        -- valid email chars
+        -- . : must have . after @
+        -- valid email chars
+          , '[^\s]([A-z0-9._+!#$%^&*-]+)@([A-z0-9._+!#$%^&*-]+)\.([A-z0-9._+!#$%^&*-]+)[^\s]'
+      )
+    ) As extract_email
+from contact_person c
+left join tms_contact_person_type p on p.contact_person_type = c.contact_person_type
+Where (
+  c.active_ind = 'Y'
+  And c.contact_person_type = 'PA'
+  And trim(c.xcomment) Is Not Null
+)),
+
+
+pa as      (select clean.id_number,
+       max (clean.contact_id_number) keep (dense_rank first order by clean.contact_id_number DESC,
+       clean.date_modified DESC) as contact_id_number,
+       max (clean.xcomment) keep (dense_rank first order by clean.xcomment DESC,
+       clean.date_modified DESC) as xcomment,
+       max (clean.extract_email) keep (dense_rank first order by clean.date_modified DESC,
+       clean.extract_email DESC) as extract_email,
+       max (clean.name) keep (dense_rank first order by clean.date_modified DESC,
+       clean.name DESC) as names,
+       max (clean.short_desc) keep (dense_rank first order by clean.date_modified DESC,
+       clean.short_desc DESC) as short_desc
+from clean
+group by clean.id_number),
+
+e AS (select email.id_number,
+       email.email_address,
+       email.preferred_ind,
+       email.forwards_to_email_address
+From email
+Where email.preferred_ind = 'Y')
+
+select h.ID_NUMBER,
+h.PREF_MAIL_NAME,
+entity.first_name,
+entity.last_name,
+h.INSTITUTIONAL_SUFFIX,
+e.email_address as entity_pref_email_address,
+pa.names as name_of_pa,
+pa.short_desc as contact_person_type_desc,
+pa.extract_email as pa_email,
+pa.xcomment as pa_xcomment
+from rpt_pbh634.v_entity_ksm_households h
+left join pa on pa.id_number = h.id_number
+left join e on e.id_number = h.id_number
+left join entity on entity.id_number = h.id_number
+order by entity.last_name ASC
