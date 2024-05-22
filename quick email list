@@ -1,0 +1,31 @@
+with e AS (select email.id_number,
+       email.email_address,
+       email.preferred_ind,
+       email.forwards_to_email_address
+From email
+Where email.preferred_ind = 'Y'),
+
+s AS (Select spec.ID_NUMBER,
+       spec.SPECIAL_HANDLING_CONCAT,
+       spec.GAB,
+       spec.TRUSTEE,
+       spec.EBFA,
+       spec.NO_CONTACT,
+       spec.NO_PHONE_IND,
+       spec.NO_EMAIL_IND,
+       spec.NO_MAIL_IND
+From rpt_pbh634.v_entity_special_handling spec)
+
+select entity.id_number,
+       entity.record_type_code,
+       entity.record_status_code,
+       entity.first_name,
+       entity.last_name,
+       entity.institutional_suffix,
+       e.email_address,
+       s.NO_CONTACT,
+       s.NO_EMAIL_IND
+from entity
+left join e on e.id_number = entity.id_number
+left join s on s.id_number = entity.id_number 
+where entity.id_number IN --- enterID here 
