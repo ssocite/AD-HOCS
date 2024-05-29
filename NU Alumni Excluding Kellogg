@@ -1,0 +1,76 @@
+With em AS (select email.id_number,
+       email.email_address,
+       email.preferred_ind,
+       email.forwards_to_email_address
+From email
+Where email.preferred_ind = 'Y'),
+
+sh AS (Select spec.ID_NUMBER,
+         spec.NO_EMAIL_IND,
+         spec.NO_CONTACT,
+       spec.SPECIAL_HANDLING_CONCAT
+From rpt_pbh634.v_entity_special_handling spec),
+
+G as (Select
+gc.*
+From table(rpt_pbh634.ksm_pkg_tmp.tbl_geo_code_primary) gc
+Inner Join address
+On address.id_number = gc.id_number
+And address.xsequence = gc.xsequence),
+
+--- Continent
+
+C as (select *
+from RPT_PBH634.v_addr_continents),
+
+
+prime as (Select DISTINCT
+         a.Id_number
+      ,  a.addr_pref_ind
+      ,  tms_address_type.short_desc AS Address_Type
+      ,  a.city
+      ,  a.zipcode
+      ,  a.state_code
+      ,  c.country as country
+      ,  G.GEO_CODE_PRIMARY_DESC AS PRIMARY_GEO_CODE
+      ,  a.country_code
+      ,  C.continent
+      FROM address a
+      LEFT JOIN tms_addr_status ON tms_addr_status.addr_status_code = a.addr_status_code
+      LEFT JOIN tms_address_type ON tms_address_type.addr_type_code = a.addr_type_code
+      LEFT JOIN tms_country ON tms_country.country_code = a.country_code
+      LEFT JOIN C ON C.country_code = A.COUNTRY_CODE
+      LEFT JOIN g ON g.id_number = A.ID_NUMBER
+      AND g.xsequence = a.xsequence
+      WHERE a.addr_status_code = 'A'
+      --- Primary Country
+      and a.addr_pref_IND = 'Y'),
+
+--- KSM alumni
+ d as (select *
+from rpt_pbh634.v_entity_ksm_degrees)
+
+
+select e.id_number,
+e.record_type_code,
+e.first_name,
+e.last_name,
+e.institutional_suffix,
+prime.country,
+case when em.email_address is not null then 'Y' end as preferred_email_ind,
+sh.NO_EMAIL_IND,
+sh.NO_CONTACT
+from entity e
+inner join prime on prime.id_number = e.id_number
+--- KSM degrees view - reverse this to exclude KSM alumni
+left join d on d.id_number = e.id_number
+left join em on em.id_number = e.id_number
+left join sh on sh.id_number = e.id_number
+where (e.record_type_code = 'AL'
+and prime.country = 'United Kingdom'
+--- Will remove KSM alumni - program is null
+and d.program is null)
+-- exlcude no contacts and no email
+and (sh.NO_CONTACT is null
+and sh.sh.NO_EMAIL_IND is null)
+Order By e.last_name asc
