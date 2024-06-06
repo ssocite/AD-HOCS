@@ -1,0 +1,84 @@
+with h as (select *
+from RPT_PBH634.V_ENTITY_KSM_HOUSEHOLDS),
+
+--- General Employment
+e as (
+  Select id_number
+  , job_title
+  , employment.fld_of_work_code
+  , fow.short_desc As fld_of_work
+  , employer_name1,
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+  Where employment.primary_emp_ind = 'Y'
+),
+
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.NO_EMAIL_IND,
+       spec.NO_CONTACT
+From rpt_pbh634.v_entity_special_handling spec),
+
+linked as (select distinct ec.id_number,
+max(ec.start_dt) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) As Max_Date,
+max (ec.econtact) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) as linkedin_address
+from econtact ec
+where  ec.econtact_status_code = 'A'
+and  ec.econtact_type_code = 'L'
+Group By ec.id_number),
+
+assign as (select assign.id_number,
+       assign.prospect_manager,
+       assign.lgos,
+       assign.managers,
+       assign.curr_ksm_manager
+from rpt_pbh634.v_assignment_summary assign),
+
+--- Anyone that was in the KVA
+
+veterans as (select distinct stact.id_number,
+t.short_desc,
+stact.student_activity_code
+  FROM  student_activity stact
+  left join tms_student_act t on t.student_activity_code = stact.student_activity_code
+ WHERE  stact.student_activity_code = 'KVA')
+
+select distinct
+       H.id_number,
+       veterans.short_desc,
+       h.PREF_MAIL_NAME,
+       entity.first_name,
+       entity.last_name,
+       h.FIRST_KSM_YEAR,
+       h.PROGRAM,
+       assign.prospect_manager,
+       assign.lgos,
+       e.employer_name,
+       e.job_title,
+       linked.linkedin_address,
+       h.HOUSEHOLD_CITY,
+       h.HOUSEHOLD_STATE,
+       h.HOUSEHOLD_ZIP,
+       h.HOUSEHOLD_GEO_CODES,
+       h.HOUSEHOLD_GEO_PRIMARY,
+       h.HOUSEHOLD_GEO_PRIMARY_DESC
+from h
+inner join entity on entity.id_number = h.id_number
+inner join veterans on veterans.id_number = h.id_number
+left join e on e.id_number = h.id_number
+left join KSM_Spec on KSM_Spec.id_number = h.id_number
+left join linked on linked.id_number = h.id_number
+left join assign on assign.id_number = h.id_number
+where (KSM_Spec.NO_CONTACT is null
+and KSM_Spec.NO_EMAIL_IND is null)
+and h.program_group is not null
+and h.FIRST_KSM_YEAR IN ('2021','2022','2023')
+order by entity.last_name
