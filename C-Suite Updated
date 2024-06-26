@@ -1,0 +1,151 @@
+With F as (SELECT mail.id_number,
+       mail.mail_list_code,
+       TMS_MAIL_LIST_CODE.short_desc,
+       mail.start_dt,
+       mail.xcomment
+  FROM  mailing_list mail
+  left join TMS_MAIL_LIST_CODE on TMS_MAIL_LIST_CODE.mail_list_code_code = mail.mail_list_code
+ WHERE  mail.xcomment LIKE '%Fortune 500%'
+ --- mail code of 100 = famous person in CATracks
+ and mail.mail_list_code = '100'),
+
+
+employ As (
+  Select employment.id_number
+  , employment.job_title
+  , employment.fld_of_work_code
+  , fow.short_desc As fld_of_work
+  , employment.self_employ_ind
+  , employment.employer_name1,
+    -- If there's an employer ID filled in, use the entity name
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+  Left Join F on F.id_number = employment.id_number
+
+Where employment.primary_emp_ind = 'Y'
+
+And (
+  --- CSUITE/Founders/Owners/Self Employed
+  ((employment.job_title) LIKE '%CHIEF%'
+    OR (employment.job_title) LIKE '%CMO%'
+    OR  (employment.job_title) LIKE '%CEO%'
+    OR  (employment.job_title) LIKE '%CFO%'
+    OR  (employment.job_title) LIKE '%COO%'
+    OR  (employment.job_title) LIKE '%CIO%'
+    OR (employment.job_title) Like '%Founder%'
+    OR (employment.job_title) Like '%Owner%'
+    --- Self Employed!
+    OR employment.self_employ_ind = 'Y'
+    OR F.id_number is not null
+
+    )
+--- Taking out folks who are NOT C-Suite - Reviewed with Intern
+and employment.job_title != 'Advisor to Chairman & CEO'
+and employment.job_title != 'Advisor to the CEO'
+and employment.job_title != 'Assistant  to the CEO'
+and employment.job_title != 'Associate VP, Executive Integration & Office of the CEO'
+and employment.job_title != 'CEO-in-Training Talent Lead'
+and employment.job_title != 'Chief Of Staff to CEO'
+and employment.job_title != 'Chief of Staff to the CEO'
+and employment.job_title != 'Chief of Staff, Office of the CEO'
+and employment.job_title != 'Executive Assistant to CEO/COO'
+and employment.job_title != 'Fellow at CEO Action for Racial Equity'
+and employment.job_title != 'Head of Strategy and PMO (CEO office)'
+and employment.job_title != 'ICEO Senior Advisor'
+and employment.job_title != 'Strategic Advisor of CEO'
+and employment.job_title != 'Strategy & Business Architecture Consultant, CEO and Founder'
+and employment.job_title != 'SVP of Strategic Solutions and Chief of Staff to CEO'
+and employment.job_title != 'SVP, Chief of Staff to the CEO'
+and employment.job_title != 'Acting Site Coordinator'
+and employment.job_title != 'Adult Programs Coordinator'
+and employment.job_title != 'Area Coordinator,Workforce / Vaccine Integration Initiative'
+and employment.job_title != 'Asesor Desarrollo de Negocios'
+and employment.job_title != 'Assistant Chief Executive, Marketing'
+and employment.job_title != 'Assistant Public Defender/Chief, Mental Health Division'
+and employment.job_title != 'Asst Exec VP COO'
+and employment.job_title != 'Asst. Coordinator - ESL Program'
+and employment.job_title != 'Board Member, Chicago Coordinator'
+and employment.job_title != 'Branch Chief'
+and employment.job_title != 'Campus Campaign Coordinator'
+and employment.job_title != 'Cass County Wellness Coordinator'
+and employment.job_title != 'Center Coordinator, Coach and Guide'
+and employment.job_title != 'Lead Literacy Coordinator'
+and employment.job_title != 'Lead Client Insights Consultant - On-Site at Molson Coors'
+and employment.job_title != 'Mentor Coordinator'
+and employment.job_title != 'Program Coordinator'
+and employment.job_title != 'Program CFO, Global Health'
+and employment.job_title != 'Pro Bono Coordinator'
+and employment.job_title != 'Process & Risk Assessment Coordinator / IT Specialist'
+and employment.job_title != 'Sales Coordinator'
+and employment.job_title != 'Service Learning Coordinator'
+and employment.job_title != 'Service-Learning Coordinator'
+and employment.job_title != 'Special Assist to Cook County Commissioner Scott Britton'
+and employment.job_title != 'Gerente Corporativo de Transformacion Digital'
+and employment.job_title != 'Gerente de Comunicaciones y Sustentabilidad'
+and employment.job_title != 'Gerente de Relacion con Inversionistas'
+and employment.job_title != 'Marketing Coordinator'
+and employment.job_title != 'International Coordinator'
+and employment.job_title != 'Prog Coord'
+and employment.job_title != 'Volunteer Coordinator'
+and employment.job_title != 'Clinical Information Systems Coordinator'
+and employment.job_title != 'Clinical Resource Coordinator'
+and employment.job_title != 'Coordinator'
+and employment.job_title != 'Coordenadora de Orcamentacao'
+and employment.job_title != 'Coord-Physical Therp'
+and employment.job_title != 'Coord Risk Mgmt'
+and employment.job_title != 'Coor Trading Perf'
+and employment.job_title != 'Cooking and Health Coach'
+and employment.job_title != 'Community Engagement Coordinator'
+and employment.job_title != 'Communications Coordinator'
+and employment.job_title != 'Coordinator of Programs and Exhibits'
+and employment.job_title != 'Coordinator of Student Assignment & Technology Projects'
+and employment.job_title != 'Coordinator, Licensing and Reseller Prgs'
+and employment.job_title != 'Consultant and Business Coach, Tina K. Cooper, LLC'
+and employment.job_title != 'Division Chief'
+and employment.job_title != 'Scholarship Coordinator and Special Accounting Projects'
+and employment.job_title != 'Country Coordinator'
+and employment.job_title != 'Senior Supply Coordinator, Whiting Feedstocks'
+and employment.job_title != 'Strategy Chair/Ex-Officio'
+and employment.job_title != 'Certified Divorce Financial Analyst, Owner'
+and employment.job_title != 'Certified Senior Executive Leadership Coach and Owner'
+
+
+and employment.job_title not like '%Deputy%')),
+
+s AS (Select spec.ID_NUMBER,
+       spec.SPECIAL_HANDLING_CONCAT,
+       spec.GAB,
+       spec.TRUSTEE,
+       spec.EBFA,
+       spec.NO_CONTACT,
+       spec.NO_EMAIL_IND
+From rpt_pbh634.v_entity_special_handling spec)
+
+select house.ID_NUMBER,
+       e.gender_code,
+       house.REPORT_NAME,
+       house.FIRST_KSM_YEAR,
+       house.PROGRAM,
+       house.PROGRAM_GROUP,
+       employ.self_employ_ind,
+       employ.job_title,
+       employ.employer_name,
+       case when f.id_number is not null then 'Fortune 500 CEO' end as Fortune_500_CEO
+from rpt_pbh634.v_entity_ksm_households house
+inner join employ on employ.id_number = house.ID_NUMBER
+inner join entity e on e.id_number = house.id_number
+left join s on s.id_number = house.id_number
+left join f on f.id_number = house.id_number
+where (house.PROGRAM is not null
+and e.gender_code = 'F'
+and s.no_contact is null )
+order by employ.self_employ_ind ASC
