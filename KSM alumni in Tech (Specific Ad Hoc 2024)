@@ -1,0 +1,193 @@
+with KSM_Spec AS (Select spec.ID_NUMBER,
+spec.NO_CONTACT,
+spec.NO_EMAIL_IND,
+spec.GAB,
+spec.TRUSTEE,
+spec.EBFA,
+       spec.SPECIAL_HANDLING_CONCAT
+From rpt_pbh634.v_entity_special_handling spec),
+
+--- First Employment Pull - Primary Employment
+
+employ As (
+  Select id_number
+  , job_title
+  , employment.fld_of_work_code
+  , fow.short_desc As fld_of_work
+  , employment.fld_of_spec_code1
+  , tms_fld_of_spec.short_desc as fld_of_speciality
+  , employer_name1,
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+       Left Join tms_fld_of_spec
+       on tms_fld_of_spec.fld_of_spec_code = employment.fld_of_spec_code1
+  Where employment.primary_emp_ind = 'Y'
+),
+
+--- Lisa's List of Employers:
+
+
+employers as (select employ.id_number
+from employ
+where (employ.employer_name = 'Apple Inc'
+or employ.employer_name = 'Google, Inc.'
+or employ.employer_name = 'Meta'
+or employ.employer_name = 'Amazon Web Services LLC'
+or employ.employer_name = 'Amazon.com'
+or employ.employer_name = 'Microsoft Corporation'
+
+or  employ.employer_name  like  '%Accelerance%'
+or  employ.employer_name  like  '%Adobe%'
+or  employ.employer_name  like  '%Amazon%'
+or  employ.employer_name  like  '%Amplitude, Inc.%'
+or  employ.employer_name  like  '%Apkudo Inc%'
+or  employ.employer_name  like  '%Autodesk%'
+or  employ.employer_name  like  '%Azara Healthcare LLC%'
+or  employ.employer_name  like  '%BrainStorm, Inc.%'
+or  employ.employer_name  like  '%C3.ai%'
+---or  employ.employer_name  like  '%Canal%'
+or  employ.employer_name  like  '%Cisco Systems%'
+or  employ.employer_name  like  '%Climate Club%'
+or  employ.employer_name  like  '%Coalition, Inc.%'
+or  employ.employer_name  like  '%Confluent%'
+or  employ.employer_name  like  '%Coupang.com%'
+or  employ.employer_name  like  '%Dell%'
+or  employ.employer_name  like  '%Dell Technologies Inc.%'
+
+or  employ.employer_name  like  '%DocuSign%'
+or  employ.employer_name  like  '%Electronic Arts%'
+or  employ.employer_name  like  '%Experian%'
+or  employ.employer_name  like  '%Flatiron Health%'
+or  employ.employer_name  like  '%Google%'
+or  employ.employer_name  like  '%HERE%'
+or  employ.employer_name  like  '%hims & hers%'
+or  employ.employer_name  like  '%Housecall Pro%'
+or  employ.employer_name  like  '%IBM%'
+or  employ.employer_name  like  '%Intuit Inc.%'
+or  employ.employer_name  like  '%Jano Life%'
+or  employ.employer_name  like  '%JMA Wireless%'
+or  employ.employer_name  like  '%Klarity Health%'
+or  employ.employer_name  like  '%Kraken%'
+or  employ.employer_name  like  '%Leland Prep%'
+or  employ.employer_name  like  '%LinkedIn%'
+or  employ.employer_name  like  '%McMaster-Carr%'
+----or  employ.employer_name  =  'Meta'
+or  employ.employer_name  like  '%Microsoft Corporation%'
+--- All Business Units of Microsoft
+or  employ.employer_name  like  '%Minoan%'
+or  employ.employer_name  like  '%Nanoprecise%'
+or  employ.employer_name  like  '%NVIDIA Corporation%'
+or  employ.employer_name  like  '%Offchain Labs%'
+or  employ.employer_name  like  '%Okta, Inc.%'
+---or  employ.employer_name  like  '%ONE%'
+or  employ.employer_name  like  '%Rakuten, Inc.%'
+or  employ.employer_name  like  '%Rippling%'
+or  employ.employer_name  like  '%Salesforce.com%'
+or  employ.employer_name  like  '%Samsung Global Strategy Group%'
+or  employ.employer_name  like  '%Samsung Research America%'
+or  employ.employer_name  like  '%Sentrics%'
+or  employ.employer_name  like  '%ServiceNow%'
+or  employ.employer_name  like  '%Shopee%'
+or  employ.employer_name  like  '%Shopify%'
+or  employ.employer_name  like  '%SoFi%'
+or  employ.employer_name  like  '%Stellar Sleep%'
+or  employ.employer_name  like  '%Sui Foundation%'
+or  employ.employer_name  like  '%Tegus%'
+or  employ.employer_name  like  '%Tempus%'
+or  employ.employer_name  like  '%Teradata%'
+or  employ.employer_name  like  '%Trend Health Partners%'
+or  employ.employer_name  like  '%Uber%'
+or  employ.employer_name  like  '%Verkada%'
+or  employ.employer_name  like  '%VISA%'
+or  employ.employer_name  like  '%Wayfair%'
+or  employ.employer_name  like  '%Western Digital Corporation%'
+or  employ.employer_name  like  '%Wizards of the Coast%'
+or  employ.employer_name  like  '%Workday, Inc.%'
+or  employ.employer_name  like  '%ZillowGroup%')
+),
+
+--- OR they have Field of work from the first pull
+
+
+industry as (select employ.id_number,
+employ.fld_of_work
+from employ
+where employ.fld_of_work IN ('Computer & Network Security',
+'Computer Hardware',
+'Information Technology and Services',
+'Internet',
+'Telecommunications',
+'Computer Networking',
+'Nanotechnology',
+'Computer Software',
+'Semiconductors',
+'Biotechnology',
+'Wireless')),
+
+
+spec as (select employ.id_number,
+employ.fld_of_speciality
+from employ
+where employ.fld_of_spec_code1 =  '831'
+or employ.fld_of_spec_code1 =  '001'
+or employ.fld_of_spec_code1 =  'B06'
+or employ.fld_of_spec_code1 =  'B16'
+or employ.fld_of_spec_code1 =  'CON2'
+or employ.fld_of_spec_code1 =  'B29'
+or employ.fld_of_spec_code1 =  '131'
+or employ.fld_of_spec_code1 =  '515'
+or employ.fld_of_spec_code1 =  'K09'
+or employ.fld_of_spec_code1 =  'B03'
+or employ.fld_of_spec_code1 =  '338'
+or employ.fld_of_spec_code1 =  '340'
+or employ.fld_of_spec_code1 =  '362'
+or employ.fld_of_spec_code1 =  '360'
+or employ.fld_of_spec_code1 =  '183'
+or employ.fld_of_spec_code1 =  'K0L'
+or employ.fld_of_spec_code1 =  '135'
+or employ.fld_of_spec_code1 =  '184')
+
+select distinct h.id_number,
+       h.REPORT_NAME,
+       h.RECORD_STATUS_CODE,
+       h.FIRST_KSM_YEAR,
+       h.PROGRAM,
+       h.PROGRAM_GROUP,
+       ---- Include data if they meet the standards
+       industry.fld_of_work,
+       spec.fld_of_speciality,
+       case when employers.id_number is not null then 'Y' end as Lisa_Employer_List,
+         --- job title and employer from general employment pull
+       employ.job_title,
+       employ.employer_name
+from rpt_pbh634.v_entity_ksm_households h
+left join KSM_Spec on KSM_Spec.id_number = h.id_number
+left join employ on employ.id_number = h.id_number
+left join employers on employers.id_number = h.id_number
+left join spec on spec.id_number = h.id_number
+left join industry on industry.id_number = h.id_number
+--- KSM Alumni
+Where h.PROGRAM is not null
+
+
+and (employers.id_number is not null
+or spec.id_number is not null
+or industry.id_number is not null)
+and
+-- exclude employers that we found reviewing data NOT on Lisa's list
+(employ.employer_name  !=  'StorONE'
+and employ.employer_name  !=  'Dellen LLC'
+and employ.employer_name  !=  'Della & Associates'
+and employ.employer_name  !=  'Domaine Della Winery'
+and employ.employer_name  !=  'Michael & Susan Dell Foundation'
+and employ.employer_name  !=  'Tempus')
+
+order by  h.REPORT_NAME ASC
