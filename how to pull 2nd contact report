@@ -1,0 +1,35 @@
+
+with
+ordered_cr As (
+-- Subquery
+Select cr.id_number
+, cr.contacted_name
+, cr.contact_date
+-- Partition by id_number: each new ID number, restart counting rownum from 1
+-- Order By contact_date Desc: most recent CR is #1
+, row_number() over (partition by id_number order by cr.contact_date desc) As rownumber
+From rpt_pbh634.v_contact_reports_fast cr
+Order By cr.id_number Asc, cr.contact_date DESC
+)
+
+Select entity.id_number
+, entity.report_name
+-- Add and label each of your contact reports
+, cr1.contacted_name As cr_1_name
+, cr1.contact_date As cr_1_date
+, cr2.contacted_name As cr_2_name
+, cr2.contact_date As cr_2_date
+From entity
+-- For each contact report you want to show, you need a new join
+-- Newest CR
+Left Join ordered_cr cr1
+On cr1.id_number = entity.id_number
+And rownumber = 1 -- And clause filters for only 1st CR
+-- 2nd CR
+Left Join ordered_cr cr2
+On cr2.id_number = entity.id_number 
+And cr2.rownumber = 2 -- And clause filters for ony 2nd CR
+-- Just filtering for people who have at least 1 CR
+Where cr1.id_number Is Not Null
+Order By id_number Asc
+;
