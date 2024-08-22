@@ -1,0 +1,233 @@
+with h as (select h.ID_NUMBER,
+       h.REPORT_NAME,
+       h.PREF_MAIL_NAME,
+       h.RECORD_STATUS_CODE,
+       h.DEGREES_CONCAT,
+       h.FIRST_KSM_YEAR,
+       h.PROGRAM,
+       h.PROGRAM_GROUP,
+       h.LAST_NONCERT_YEAR,
+       h.INSTITUTIONAL_SUFFIX,
+       h.SPOUSE_ID_NUMBER,
+       h.SPOUSE_REPORT_NAME,
+       h.SPOUSE_PREF_MAIL_NAME,
+       h.SPOUSE_SUFFIX,
+       h.SPOUSE_DEGREES_CONCAT,
+       h.SPOUSE_FIRST_KSM_YEAR,
+       h.SPOUSE_PROGRAM,
+       h.SPOUSE_PROGRAM_GROUP,
+       h.SPOUSE_LAST_NONCERT_YEAR,
+       h.FMR_SPOUSE_ID,
+       h.FMR_SPOUSE_NAME,
+       h.FMR_MARITAL_STATUS,
+       h.HOUSEHOLD_ID,
+       h.HOUSEHOLD_PRIMARY,
+       h.HOUSEHOLD_RECORD,
+       h.PERSON_OR_ORG,
+       h.HOUSEHOLD_NAME,
+       h.HOUSEHOLD_RPT_NAME,
+       h.HOUSEHOLD_SPOUSE_ID,
+       h.HOUSEHOLD_SPOUSE,
+       h.HOUSEHOLD_SPOUSE_RPT_NAME,
+       h.HOUSEHOLD_LIST_FIRST,
+       h.HOUSEHOLD_LIST_SECOND,
+       h.HOUSEHOLD_SUFFIX,
+       h.HOUSEHOLD_SPOUSE_SUFFIX,
+       h.HOUSEHOLD_KSM_YEAR,
+       h.HOUSEHOLD_MASTERS_YEAR,
+       h.HOUSEHOLD_PROGRAM,
+       h.HOUSEHOLD_PROGRAM_GROUP,
+       h.HOUSEHOLD_CITY,
+       h.HOUSEHOLD_STATE,
+       h.HOUSEHOLD_GEO_CODES,
+       h.HOUSEHOLD_GEO_PRIMARY_DESC,
+       h.HOUSEHOLD_COUNTRY
+From rpt_pbh634.v_entity_ksm_households h
+where h.PROGRAM_GROUP is not null
+
+),
+
+comm as (SELECT c.id_number
+      ,listagg(ct.full_desc, chr(13)) Within Group (order by ct.full_desc) as committee_concat
+FROM committee c
+INNER JOIN tms_committee_table ct
+ON c.committee_code = ct.committee_code
+WHERE c.committee_status_code = 'C'
+AND c.committee_role_code <> 'EF'
+GROUP BY c.id_number),
+
+--- Spouse's Committee
+
+comms as (SELECT c.id_number
+      ,listagg(ct.full_desc, chr(13)) Within Group (order by ct.full_desc) as committee_concat
+FROM committee c
+INNER JOIN tms_committee_table ct
+ON c.committee_code = ct.committee_code
+WHERE c.committee_status_code = 'C'
+AND c.committee_role_code <> 'EF'
+GROUP BY c.id_number),
+
+
+
+--- pulling primary employer
+employ As (
+  Select id_number
+  , job_title
+  , employer_name1,
+    -- If there's an employer ID filled in, use the entity name
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  From employment
+  Where employment.primary_emp_ind = 'Y'
+),
+
+--- This subquery will pull the giving information that Kam is mentoning
+Giving as (select
+rpt_pbh634.v_ksm_giving_summary.ID_NUMBER,
+rpt_pbh634.v_ksm_giving_summary.NGC_LIFETIME,
+rpt_pbh634.v_ksm_giving_summary.LAST_GIFT_DATE,
+rpt_pbh634.v_ksm_giving_summary.LAST_GIFT_RECOGNITION_CREDIT,
+rpt_pbh634.v_ksm_giving_summary.NU_MAX_HH_LIFETIME_GIVING
+from rpt_pbh634.v_ksm_giving_summary),
+
+p AS (
+Select TP.ID_NUMBER,
+       TP.EVALUATION_RATING,
+       TP.OFFICER_RATING,
+       TP.TASK_RESP
+From nu_prs_trp_prospect TP),
+
+tran as (select distinct HH.ID_NUMBER
+FROM rpt_pbh634.v_ksm_giving_trans_hh HH
+where HH.PLEDGE_STATUS = 'A'),
+
+PROP AS (
+  SELECT DISTINCT
+    PE.ID_NUMBER
+  FROM RPT_PBH634.V_PROPOSAL_HISTORY_FAST PH
+  LEFT JOIN PROSPECT_ENTITY PE
+  ON PH.prospect_id = PE.PROSPECT_ID
+  WHERE PH.proposal_active = 'Y'),
+
+  --- KSM PM, LGO, Manager
+
+a as (select distinct assign.id_number,
+assign.prospect_manager,
+assign.lgos,
+assign.managers,
+assign.prospect_manager_id
+from rpt_pbh634.v_assignment_summary assign
+--- Anyone NOT a KSM PM - so let's exclude frontline ksm staff
+--- Need to join on prospect manager ID! Becuase it's KSM Staff and KSM staff and prospect managers!
+left join rpt_pbh634.v_frontline_ksm_staff s on s.id_number = assign.prospect_manager_id
+--- exlcude ksm staff so s is null
+where  s.id_number is null
+),
+
+--- contact report --- most recent
+
+c as (select cr.id_number,
+max (cr.credited) keep (dense_rank First Order By cr.contact_date DESC) as credited,
+max (cr.credited_name) keep (dense_rank First Order By cr.contact_date DESC) as credited_name,
+max (cr.contacted_name) keep (dense_rank First Order By cr.contact_date DESC) as contacted_name,
+max (cr.contact_type) keep (dense_rank First Order By cr.contact_date DESC) as contact_type,
+max (cr.contact_date) keep (dense_rank First Order By cr.contact_date DESC) as contact_Date,
+max (cr.contact_purpose) keep (dense_rank First Order By cr.contact_date DESC) as contact_purpose,
+max (cr.description) keep (dense_rank First Order By cr.contact_date DESC) as description_,
+max (cr.summary) keep (dense_rank First Order By cr.contact_date DESC) as summary_
+from rpt_pbh634.v_contact_reports_fast cr
+group by cr.id_number),
+
+
+
+finals as (
+
+select h.id_number,
+h.PREF_MAIL_NAME,
+h.INSTITUTIONAL_SUFFIX,
+h.SPOUSE_ID_NUMBER,
+h.SPOUSE_PREF_MAIL_NAME,
+h.SPOUSE_SUFFIX,
+employ.job_title,
+employ.employer_name,
+h.HOUSEHOLD_CITY,
+h.HOUSEHOLD_STATE,
+h.HOUSEHOLD_COUNTRY,
+h.HOUSEHOLD_GEO_CODES,
+comm.committee_concat,
+comms.committee_concat as committee_concat_spouse,
+a.prospect_manager_id,
+a.prospect_manager,
+P.EVALUATION_RATING,
+P.OFFICER_RATING,
+p.TASK_RESP,
+case when tran.id_number is not null then 'Y' end as plg_active,
+case when prop.id_number is not null then 'Y' end as proposal_active,
+--- giving - NGC lifetime, NU lifetime, Giving last 5FY, Date last gift, Max gift/date
+giving.NGC_LIFETIME,
+giving.NU_MAX_HH_LIFETIME_GIVING,
+giving.LAST_GIFT_DATE,
+giving.LAST_GIFT_RECOGNITION_CREDIT,
+c.credited,
+c.credited_name,
+c.contacted_name,
+c.contact_type,
+c.contact_Date,
+c.contact_purpose,
+c.description_,
+c.summary_
+from h
+inner join a on a.id_number = h.id_number
+left join comm on comm.id_number = h.id_number
+left join comms on comms.id_number = h.id_number
+left join employ on employ.id_number = h.id_number
+left join giving on giving.id_number = h.id_number
+left join p on p.id_number = h.id_number
+left join tran on tran.id_number = h.id_number
+left join prop on prop.id_number = h.id_number
+left join c on c.id_number = h.id_number
+)
+
+select finals.id_number,
+finals.PREF_MAIL_NAME,
+finals.INSTITUTIONAL_SUFFIX,
+finals.SPOUSE_ID_NUMBER,
+finals.SPOUSE_PREF_MAIL_NAME,
+finals.SPOUSE_SUFFIX,
+finals.job_title,
+finals.employer_name,
+finals.HOUSEHOLD_CITY,
+finals.HOUSEHOLD_STATE,
+finals.HOUSEHOLD_COUNTRY,
+finals.HOUSEHOLD_GEO_CODES,
+finals.committee_concat,
+finals.committee_concat_spouse,
+finals.prospect_manager_id,
+finals.prospect_manager,
+finals.EVALUATION_RATING,
+finals.OFFICER_RATING,
+finals.TASK_RESP,
+finals.plg_active,
+finals.proposal_active,
+--- giving - NGC lifetime, NU lifetime, Giving last 5FY, Date last gift, Max gift/date
+finals.NGC_LIFETIME,
+finals.NU_MAX_HH_LIFETIME_GIVING,
+finals.LAST_GIFT_DATE,
+finals.LAST_GIFT_RECOGNITION_CREDIT,
+finals.credited,
+finals.credited_name,
+finals.contacted_name,
+finals.contact_type,
+finals.contact_Date,
+finals.contact_purpose,
+finals.description_,
+finals.summary_
+from finals
+where finals.prospect_manager_id is not null
+order by finals.id_number asc
