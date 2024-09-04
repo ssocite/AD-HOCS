@@ -71,7 +71,7 @@ or employ.employer_name like '%WWE%'
 or employ.employer_name like '%Wynn Resorts%'
 
 )
-or employ.fld_of_work = 'L37'
+or employ.fld_of_work_code = 'L37'
 ),
 
 
