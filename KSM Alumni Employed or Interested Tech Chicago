@@ -85,7 +85,7 @@ house.FIRST_KSM_YEAR,
 house.PROGRAM,
 house.HOUSEHOLD_CITY,
 house.HOUSEHOLD_STATE,
-house.HOUSEHOLD_GEO_PRIMARY,
+house.HOUSEHOLD_GEO_CODES,
 house.HOUSEHOLD_GEO_PRIMARY_DESC,
 house.HOUSEHOLD_COUNTRY,
 employ.job_title,
@@ -113,7 +113,7 @@ Left Join linked on linked.id_number = house.id_number
 --- KSM EMBA, Chicago, No contacts excluded, No Contacts excluded 
 Where KSM_Spec.NO_CONTACT is null
 
-and house.HOUSEHOLD_GEO_PRIMARY like '%Chicago%'
+and house.HOUSEHOLD_GEO_CODES like '%Chicago%'
 
 and d.program_group = 'EMP'
 
