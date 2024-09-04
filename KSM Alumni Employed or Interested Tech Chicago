@@ -1,0 +1,131 @@
+with
+
+--- General Employment
+
+Employ as (Select employment.id_number,
+   employment.job_title,
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  ,fow.short_desc
+  ,case when v.tech is not null and v.fld_of_work_code != 'L140' then 'Tech/AI' end as tech_AI_employment
+  From employment
+    Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+left join v_industry_groups v on v.fld_of_work_code = employment.fld_of_work_code
+Where employment.primary_emp_ind = 'Y'),
+
+
+
+employ_tech as (
+Select employment.id_number,
+   employment.job_title,
+    Case
+      When employer_id_number Is Not Null And employer_id_number != ' ' Then (
+        Select pref_mail_name
+        From entity
+        Where id_number = employer_id_number)
+      -- Otherwise use the write-in field
+      Else trim(employer_name1 || ' ' || employer_name2)
+    End As employer_name
+  ,fow.short_desc
+  ,case when v.tech is not null and v.fld_of_work_code != 'L140' then 'Tech/AI' end as tech_AI_employment
+  From employment
+  Left Join tms_fld_of_work fow
+       On fow.fld_of_work_code = employment.fld_of_work_code
+left join v_industry_groups v on v.fld_of_work_code = employment.fld_of_work_code
+Where employment.primary_emp_ind = 'Y'
+and (v.TECH is not null)),
+
+TECH_INTEREST AS (Select Distinct interest.catracks_id,
+Listagg (interest.interest_desc, ';  ') Within Group (Order By interest.interest_desc) AS short_desc
+from rpt_pbh634.v_datamart_career_interests interest
+left join v_industry_groups v on v.fld_of_work_code = interest.interest_code
+where v.TECH is not null
+group by interest.catracks_id),
+
+assign as (select assign.id_number,
+       assign.prospect_manager,
+       assign.lgos,
+       assign.managers,
+       assign.curr_ksm_manager
+from rpt_pbh634.v_assignment_summary assign),
+
+KSM_Spec AS (Select spec.ID_NUMBER,
+       spec.NO_EMAIL_IND,
+       spec.NO_CONTACT,
+       spec.GAB,
+       spec.TRUSTEE,
+       spec.EBFA
+From rpt_pbh634.v_entity_special_handling spec),
+
+linked as (select distinct ec.id_number,
+max(ec.start_dt) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) As Max_Date,
+max (ec.econtact) keep(dense_rank First Order By ec.start_dt Desc, ec.econtact asc) as linkedin_address
+from econtact ec
+where  ec.econtact_status_code = 'A'
+and  ec.econtact_type_code = 'L'
+Group By ec.id_number)
+
+
+
+Select
+house.id_number,
+entity.record_type_code,
+entity.first_name,
+entity.last_name,
+house.REPORT_NAME,
+entity.institutional_suffix,
+house.FIRST_KSM_YEAR,
+house.PROGRAM,
+house.HOUSEHOLD_CITY,
+house.HOUSEHOLD_STATE,
+house.HOUSEHOLD_GEO_PRIMARY,
+house.HOUSEHOLD_GEO_PRIMARY_DESC,
+house.HOUSEHOLD_COUNTRY,
+employ.job_title,
+employ.employer_name,
+employ.short_desc as employment_industry,
+case when employ_tech.id_number is not null then 'Employed in Tech' end as Employed_Tech,
+case when ti.catracks_id is not null then 'Interested in Tech' end as interested_in_tech,
+  ti.short_desc as interest_tech_concat,
+house.HOUSEHOLD_CITY,
+house.HOUSEHOLD_STATE,
+house.HOUSEHOLD_COUNTRY,
+linked.linkedin_address,
+KSM_Spec.NO_EMAIL_IND,
+KSM_Spec.NO_CONTACT
+
+From rpt_pbh634.v_entity_ksm_households house
+INNER Join entity on entity.id_number = house.id_number
+Inner Join rpt_pbh634.v_entity_ksm_degrees d on d.id_number = house.id_number
+Left Join assign on assign.id_number = house.ID_number
+Left Join employ on employ.id_number = house.id_number
+Left Join employ_tech on employ_tech.id_number = house.id_number
+Left Join KSM_Spec on KSM_Spec.id_number = house.id_number
+LEFT JOIN TECH_INTEREST TI ON TI.catracks_id = HOUSE.ID_NUMBER
+Left Join linked on linked.id_number = house.id_number
+--- KSM EMBA, Chicago, No contacts excluded, No Contacts excluded 
+Where KSM_Spec.NO_CONTACT is null
+
+and house.HOUSEHOLD_GEO_PRIMARY like '%Chicago%'
+
+and d.program_group = 'EMP'
+
+--- Take out No Emails double check take out no contacts
+and KSM_Spec.NO_EMAIL_IND is null
+
+and KSM_Spec.NO_CONTACT is null
+
+--- Employed in Tech OR INTERESTED IN TECH 
+and 
+
+(ti.catracks_id is not null
+or employ_tech.id_number is not null)
+
+Order By house.REPORT_NAME ASC
