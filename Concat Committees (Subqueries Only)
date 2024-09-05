@@ -1,0 +1,19 @@
+comm as (SELECT c.id_number
+      ,listagg(ct.full_desc, chr(13)) Within Group (order by ct.full_desc) as committee_concat
+FROM committee c
+INNER JOIN tms_committee_table ct
+ON c.committee_code = ct.committee_code
+WHERE c.committee_status_code = 'C'
+AND c.committee_role_code <> 'EF'
+GROUP BY c.id_number),
+
+--- Spouse's Committee
+
+comms as (SELECT c.id_number
+      ,listagg(ct.full_desc, chr(13)) Within Group (order by ct.full_desc) as committee_concat
+FROM committee c
+INNER JOIN tms_committee_table ct
+ON c.committee_code = ct.committee_code
+WHERE c.committee_status_code = 'C'
+AND c.committee_role_code <> 'EF'
+GROUP BY c.id_number),
